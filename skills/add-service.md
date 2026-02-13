@@ -1,4 +1,4 @@
-# Agent Prompt: Add a New Service to DoubleAgent
+# Add a New Service to DoubleAgent
 
 You are tasked with adding a new fake service to DoubleAgent. Follow these steps:
 
