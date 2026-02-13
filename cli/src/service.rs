@@ -9,6 +9,7 @@ pub struct ServiceDefinition {
     pub description: Option<String>,
     pub docs: Option<String>,
     pub server: ServerConfig,
+    pub contracts: Option<ContractsConfig>,
     #[serde(skip)]
     pub path: PathBuf,
 }
@@ -19,6 +20,19 @@ pub struct ServerConfig {
     pub port: u16,
     #[serde(default)]
     pub env: std::collections::HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContractsConfig {
+    /// Command to run contract tests (e.g., ["uv", "run", "pytest", "-v"])
+    pub command: Vec<String>,
+    /// Directory containing contract tests (default: "contracts")
+    #[serde(default = "default_contracts_dir")]
+    pub directory: String,
+}
+
+fn default_contracts_dir() -> String {
+    "contracts".to_string()
 }
 
 pub struct ServiceRegistry {

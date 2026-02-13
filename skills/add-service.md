@@ -40,13 +40,10 @@ server:
   port: 8080
 
 contracts:
-  sdk:
-    package: {official_sdk_package}
-  real_api:
-    base_url: {real_api_url}
-    auth:
-      type: bearer
-      env_var: {AUTH_ENV_VAR}
+  # Command to run contract tests (language-agnostic)
+  command: ["uv", "run", "pytest", "-v", "--tb=short"]
+  # For TypeScript: ["npm", "test"]
+  # For Go: ["go", "test", "./..."]
 
 env:
   {SERVICE}_API_URL: "http://localhost:${port}"
@@ -144,15 +141,21 @@ class Test{Resource}:
 
 ```bash
 # Install dependencies
-cd services/{service_name}/server
-uv sync
+cd services/{service_name}/server && uv sync
+cd services/{service_name}/contracts && uv sync
 
-# Test against fake
+# Start the service
+doubleagent start {service_name}
+
+# Run contract tests (uses command from service.yaml)
+doubleagent contract {service_name} --target fake
+
+# Or run directly in contracts directory
 cd services/{service_name}/contracts
-DOUBLEAGENT_TARGET=fake pytest -v
+DOUBLEAGENT_TARGET=fake uv run pytest -v
 
 # Test against real (requires API credentials)
-{AUTH_ENV_VAR}=your-token DOUBLEAGENT_TARGET=real pytest -v
+{AUTH_ENV_VAR}=your-token DOUBLEAGENT_TARGET=real uv run pytest -v
 ```
 
 ## Requirements

@@ -8,17 +8,7 @@ server:
   port: 8083
 
 contracts:
-  sdk:
-    package: slack_sdk
-    import: slack_sdk.WebClient
-  real_api:
-    base_url: https://slack.com/api
-    auth:
-      type: bearer
-      env_var: SLACK_BOT_TOKEN
-  test_files:
-    - test_channels.py
-    - test_messages.py
+  command: ["uv", "run", "pytest", "-v", "--tb=short"]
 
 env:
   SLACK_API_URL: "http://localhost:${port}"

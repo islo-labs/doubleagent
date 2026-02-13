@@ -9,13 +9,30 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
     let registry = ServiceRegistry::new(&config.services_dir)?;
     
     let service = registry.get(&args.service)?;
-    let contracts_dir = service.path.join("contracts");
+    
+    // Get contracts config from service.yaml
+    let contracts_config = service.contracts.as_ref().ok_or_else(|| {
+        anyhow::anyhow!(
+            "No contracts configuration found in service.yaml for '{}'.\n\
+             Add a 'contracts' section with a 'command' to run tests.",
+            args.service
+        )
+    })?;
+    
+    let contracts_dir = service.path.join(&contracts_config.directory);
     
     if !contracts_dir.exists() {
         return Err(anyhow::anyhow!(
-            "No contracts found for {}. Expected directory: {}",
+            "Contracts directory not found for {}. Expected: {}",
             args.service,
             contracts_dir.display()
+        ));
+    }
+    
+    if contracts_config.command.is_empty() {
+        return Err(anyhow::anyhow!(
+            "No command specified in contracts configuration for '{}'",
+            args.service
         ));
     }
     
@@ -27,11 +44,13 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
     );
     println!();
     
-    // Run pytest with target environment variable (using uv)
-    let status = Command::new("uv")
+    // Run the command specified in service.yaml
+    let (program, cmd_args) = contracts_config.command.split_first().unwrap();
+    
+    let status = Command::new(program)
         .current_dir(&contracts_dir)
         .env("DOUBLEAGENT_TARGET", &args.target)
-        .args(["run", "pytest", "-v", "--tb=short"])
+        .args(cmd_args)
         .status()?;
     
     if status.success() {
