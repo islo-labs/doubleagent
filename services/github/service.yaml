@@ -1,0 +1,28 @@
+name: github
+version: "1.0"
+description: GitHub REST API fake
+docs: https://docs.github.com/en/rest
+
+server:
+  command: ["uv", "run", "python", "main.py"]
+  port: 8080
+
+contracts:
+  sdk:
+    package: PyGithub
+    import: github.Github
+  real_api:
+    base_url: https://api.github.com
+    auth:
+      type: bearer
+      env_var: GITHUB_TOKEN
+  test_files:
+    - test_repos.py
+    - test_issues.py
+
+env:
+  GITHUB_API_URL: "http://localhost:${port}"
+  GITHUB_TOKEN: "doubleagent-fake-token"
+
+features:
+  webhooks: true
