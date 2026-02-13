@@ -1,0 +1,28 @@
+name: slack
+version: "1.0"
+description: Slack Web API fake
+docs: https://api.slack.com/methods
+
+server:
+  command: ["uv", "run", "python", "main.py"]
+  port: 8083
+
+contracts:
+  sdk:
+    package: slack_sdk
+    import: slack_sdk.WebClient
+  real_api:
+    base_url: https://slack.com/api
+    auth:
+      type: bearer
+      env_var: SLACK_BOT_TOKEN
+  test_files:
+    - test_channels.py
+    - test_messages.py
+
+env:
+  SLACK_API_URL: "http://localhost:${port}"
+  SLACK_BOT_TOKEN: "xoxb-doubleagent-fake-token"
+
+features:
+  webhooks: true

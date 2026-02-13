@@ -27,12 +27,11 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
     );
     println!();
     
-    // Run pytest with target environment variable
-    let status = Command::new("pytest")
+    // Run pytest with target environment variable (using uv)
+    let status = Command::new("uv")
         .current_dir(&contracts_dir)
         .env("DOUBLEAGENT_TARGET", &args.target)
-        .arg("-v")
-        .arg("--tb=short")
+        .args(["run", "pytest", "-v", "--tb=short"])
         .status()?;
     
     if status.success() {

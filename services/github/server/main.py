@@ -11,8 +11,13 @@ from contextlib import asynccontextmanager
 from typing import Any, Optional
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Query
 from pydantic import BaseModel
+
+
+def get_base_url(request: Request) -> str:
+    """Get base URL from request for API URLs."""
+    return str(request.base_url).rstrip("/")
 
 # =============================================================================
 # State
@@ -243,18 +248,25 @@ async def get_user(login: str):
 # =============================================================================
 
 @app.get("/user/repos")
-async def list_user_repos():
+async def list_user_repos(request: Request):
     """List repos for authenticated user."""
-    repos = [r for r in state["repos"].values() 
-             if r["owner"]["login"] == DEFAULT_USER["login"]]
+    base_url = get_base_url(request)
+    repos = []
+    for r in state["repos"].values():
+        if r["owner"]["login"] == DEFAULT_USER["login"]:
+            r["url"] = f"{base_url}/repos/{r['full_name']}"
+            r["issues_url"] = f"{base_url}/repos/{r['full_name']}/issues{{/number}}"
+            r["pulls_url"] = f"{base_url}/repos/{r['full_name']}/pulls{{/number}}"
+            repos.append(r)
     return repos
 
 
 @app.post("/user/repos", status_code=201)
-async def create_user_repo(repo: RepoCreate):
+async def create_user_repo(request: Request, repo: RepoCreate):
     """Create a repo for authenticated user."""
     repo_id = next_id("repo_id")
     key = f"{DEFAULT_USER['login']}/{repo.name}"
+    base_url = get_base_url(request)
     
     repo_obj = {
         "id": repo_id,
@@ -268,6 +280,9 @@ async def create_user_repo(repo: RepoCreate):
         "updated_at": "2024-01-01T00:00:00Z",
         "html_url": f"https://github.com/{key}",
         "clone_url": f"https://github.com/{key}.git",
+        "url": f"{base_url}/repos/{key}",
+        "issues_url": f"{base_url}/repos/{key}/issues{{/number}}",
+        "pulls_url": f"{base_url}/repos/{key}/pulls{{/number}}",
     }
     state["repos"][key] = repo_obj
     
@@ -275,21 +290,27 @@ async def create_user_repo(repo: RepoCreate):
 
 
 @app.get("/repos/{owner}/{repo}")
-async def get_repo(owner: str, repo: str):
+async def get_repo(request: Request, owner: str, repo: str):
     """Get a repository."""
     key = f"{owner}/{repo}"
     if key not in state["repos"]:
         raise HTTPException(status_code=404, detail={"message": "Not Found"})
-    return state["repos"][key]
+    base_url = get_base_url(request)
+    repo_obj = state["repos"][key]
+    repo_obj["url"] = f"{base_url}/repos/{key}"
+    repo_obj["issues_url"] = f"{base_url}/repos/{key}/issues{{/number}}"
+    repo_obj["pulls_url"] = f"{base_url}/repos/{key}/pulls{{/number}}"
+    return repo_obj
 
 
 @app.patch("/repos/{owner}/{repo}")
-async def update_repo(owner: str, repo: str, update: RepoUpdate):
+async def update_repo(request: Request, owner: str, repo: str, update: RepoUpdate):
     """Update a repository."""
     key = f"{owner}/{repo}"
     if key not in state["repos"]:
         raise HTTPException(status_code=404, detail={"message": "Not Found"})
     
+    base_url = get_base_url(request)
     repo_obj = state["repos"][key]
     if update.description is not None:
         repo_obj["description"] = update.description
@@ -297,6 +318,10 @@ async def update_repo(owner: str, repo: str, update: RepoUpdate):
         repo_obj["private"] = update.private
     if update.default_branch is not None:
         repo_obj["default_branch"] = update.default_branch
+    
+    repo_obj["url"] = f"{base_url}/repos/{key}"
+    repo_obj["issues_url"] = f"{base_url}/repos/{key}/issues{{/number}}"
+    repo_obj["pulls_url"] = f"{base_url}/repos/{key}/pulls{{/number}}"
     
     return repo_obj
 
@@ -315,17 +340,27 @@ async def delete_repo(owner: str, repo: str):
 # =============================================================================
 
 @app.get("/repos/{owner}/{repo}/issues")
-async def list_issues(owner: str, repo: str, state_filter: str = "open"):
+async def list_issues(
+    request: Request, 
+    owner: str, 
+    repo: str, 
+    issue_state: str = Query(default="open", alias="state"),
+):
     """List issues for a repository."""
     key = f"{owner}/{repo}"
-    issues = [i for i in state["issues"].values() 
-              if i["repo_key"] == key and 
-              (state_filter == "all" or i["state"] == state_filter)]
+    base_url = get_base_url(request)
+    issues = []
+    for i in state["issues"].values():
+        if i["repo_key"] == key and (issue_state == "all" or i["state"] == issue_state):
+            # Ensure URL fields are present
+            i["url"] = f"{base_url}/repos/{key}/issues/{i['number']}"
+            i["repository_url"] = f"{base_url}/repos/{key}"
+            issues.append(i)
     return issues
 
 
 @app.post("/repos/{owner}/{repo}/issues", status_code=201)
-async def create_issue(owner: str, repo: str, issue: IssueCreate):
+async def create_issue(request: Request, owner: str, repo: str, issue: IssueCreate):
     """Create an issue."""
     key = f"{owner}/{repo}"
     if key not in state["repos"]:
@@ -336,6 +371,8 @@ async def create_issue(owner: str, repo: str, issue: IssueCreate):
     # Count existing issues for this repo to get number
     repo_issues = [i for i in state["issues"].values() if i["repo_key"] == key]
     number = len(repo_issues) + 1
+    
+    base_url = get_base_url(request)
     
     issue_obj = {
         "id": issue_id,
@@ -350,6 +387,8 @@ async def create_issue(owner: str, repo: str, issue: IssueCreate):
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z",
         "html_url": f"https://github.com/{key}/issues/{number}",
+        "url": f"{base_url}/repos/{key}/issues/{number}",
+        "repository_url": f"{base_url}/repos/{key}",
     }
     state["issues"][issue_id] = issue_obj
     
@@ -364,21 +403,26 @@ async def create_issue(owner: str, repo: str, issue: IssueCreate):
 
 
 @app.get("/repos/{owner}/{repo}/issues/{issue_number}")
-async def get_issue(owner: str, repo: str, issue_number: int):
+async def get_issue(request: Request, owner: str, repo: str, issue_number: int):
     """Get an issue by number."""
     key = f"{owner}/{repo}"
+    base_url = get_base_url(request)
     
     for i in state["issues"].values():
         if i["repo_key"] == key and i["number"] == issue_number:
+            # Ensure URL fields are present
+            i["url"] = f"{base_url}/repos/{key}/issues/{issue_number}"
+            i["repository_url"] = f"{base_url}/repos/{key}"
             return i
     
     raise HTTPException(status_code=404, detail={"message": "Not Found"})
 
 
 @app.patch("/repos/{owner}/{repo}/issues/{issue_number}")
-async def update_issue(owner: str, repo: str, issue_number: int, update: IssueUpdate):
+async def update_issue(request: Request, owner: str, repo: str, issue_number: int, update: IssueUpdate):
     """Update an issue."""
     key = f"{owner}/{repo}"
+    base_url = get_base_url(request)
     
     issue = None
     for i in state["issues"].values():
@@ -401,6 +445,10 @@ async def update_issue(owner: str, repo: str, issue_number: int, update: IssueUp
         issue["labels"] = update.labels
     if update.assignees is not None:
         issue["assignees"] = update.assignees
+    
+    # Ensure URL fields are present
+    issue["url"] = f"{base_url}/repos/{key}/issues/{issue_number}"
+    issue["repository_url"] = f"{base_url}/repos/{key}"
     
     # Dispatch webhook if state changed
     if update.state and update.state != old_state:
