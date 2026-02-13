@@ -28,7 +28,7 @@ services/{service-name}/
 ├── contracts/
 │   ├── conftest.py     # pytest fixtures with official SDK
 │   ├── test_*.py       # Contract tests
-│   └── requirements.txt
+│   └── pyproject.toml
 └── fixtures/
     └── sample.yaml     # Example seed data
 ```
@@ -90,10 +90,10 @@ Run contract tests against both targets:
 
 ```bash
 # Against your fake
-DOUBLEAGENT_TARGET=fake pytest
+DOUBLEAGENT_TARGET=fake uv run pytest
 
 # Against real API (needs credentials)
-DOUBLEAGENT_TARGET=real pytest
+DOUBLEAGENT_TARGET=real uv run pytest
 ```
 
 Both MUST pass.
