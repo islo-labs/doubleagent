@@ -2,20 +2,24 @@
 GitHub API Fake - DoubleAgent Service
 
 A high-fidelity fake of the GitHub REST API for AI agent testing.
+Built with FastAPI for async support and automatic OpenAPI generation.
 """
 
 import os
-import threading
-from flask import Flask, request, jsonify
-import requests
+import asyncio
+from contextlib import asynccontextmanager
+from typing import Any, Optional
 
-app = Flask(__name__)
+import httpx
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 # =============================================================================
 # State
 # =============================================================================
 
-state = {
+state: dict[str, dict] = {
     "users": {},
     "repos": {},
     "issues": {},
@@ -23,7 +27,7 @@ state = {
     "webhooks": {},  # repo_key -> [webhook]
 }
 
-counters = {
+counters: dict[str, int] = {
     "repo_id": 0,
     "issue_id": 0,
     "pull_id": 0,
@@ -38,12 +42,12 @@ DEFAULT_USER = {
 }
 
 
-def next_id(key):
+def next_id(key: str) -> int:
     counters[key] += 1
     return counters[key]
 
 
-def reset_state():
+def reset_state() -> None:
     global state, counters
     state = {
         "users": {},
@@ -61,27 +65,108 @@ def reset_state():
 
 
 # =============================================================================
+# Pydantic Models
+# =============================================================================
+
+class RepoCreate(BaseModel):
+    name: str
+    description: str = ""
+    private: bool = False
+    auto_init: bool = False
+
+
+class RepoUpdate(BaseModel):
+    description: Optional[str] = None
+    private: Optional[bool] = None
+    default_branch: Optional[str] = None
+
+
+class IssueCreate(BaseModel):
+    title: str
+    body: str = ""
+    labels: list[str] = []
+    assignees: list[str] = []
+
+
+class IssueUpdate(BaseModel):
+    title: Optional[str] = None
+    body: Optional[str] = None
+    state: Optional[str] = None
+    labels: Optional[list[str]] = None
+    assignees: Optional[list[str]] = None
+
+
+class PullCreate(BaseModel):
+    title: str
+    body: str = ""
+    head: str
+    base: str
+
+
+class PullUpdate(BaseModel):
+    title: Optional[str] = None
+    body: Optional[str] = None
+    state: Optional[str] = None
+
+
+class WebhookConfig(BaseModel):
+    url: str
+    content_type: str = "json"
+
+
+class WebhookCreate(BaseModel):
+    config: WebhookConfig
+    events: list[str] = ["*"]
+
+
+class SeedData(BaseModel):
+    repos: list[dict[str, Any]] = []
+    issues: list[dict[str, Any]] = []
+
+
+# =============================================================================
+# App Setup
+# =============================================================================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    yield
+    # Shutdown
+
+
+app = FastAPI(
+    title="GitHub API Fake",
+    description="DoubleAgent fake of the GitHub REST API",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+
+# =============================================================================
 # /_doubleagent endpoints (REQUIRED)
 # =============================================================================
 
-@app.route("/_doubleagent/health", methods=["GET"])
-def health():
-    return jsonify({"status": "healthy"})
+@app.get("/_doubleagent/health")
+async def health():
+    """Health check - REQUIRED."""
+    return {"status": "healthy"}
 
 
-@app.route("/_doubleagent/reset", methods=["POST"])
-def reset():
+@app.post("/_doubleagent/reset")
+async def reset():
+    """Reset all state - REQUIRED."""
     reset_state()
-    return jsonify({"status": "ok"})
+    return {"status": "ok"}
 
 
-@app.route("/_doubleagent/seed", methods=["POST"])
-def seed():
-    data = request.json or {}
-    seeded = {}
+@app.post("/_doubleagent/seed")
+async def seed(data: SeedData):
+    """Seed state from JSON - REQUIRED."""
+    seeded: dict[str, int] = {}
     
-    if "repos" in data:
-        for r in data["repos"]:
+    if data.repos:
+        for r in data.repos:
             key = f"{r['owner']}/{r['name']}"
             repo_id = next_id("repo_id")
             state["repos"][key] = {
@@ -95,10 +180,10 @@ def seed():
                 "created_at": "2024-01-01T00:00:00Z",
                 "updated_at": "2024-01-01T00:00:00Z",
             }
-        seeded["repos"] = len(data["repos"])
+        seeded["repos"] = len(data.repos)
     
-    if "issues" in data:
-        for i in data["issues"]:
+    if data.issues:
+        for i in data.issues:
             issue_id = next_id("issue_id")
             repo_key = i.get("repo", "doubleagent/test")
             state["issues"][issue_id] = {
@@ -112,14 +197,15 @@ def seed():
                 "created_at": "2024-01-01T00:00:00Z",
                 "updated_at": "2024-01-01T00:00:00Z",
             }
-        seeded["issues"] = len(data["issues"])
+        seeded["issues"] = len(data.issues)
     
-    return jsonify({"status": "ok", "seeded": seeded})
+    return {"status": "ok", "seeded": seeded}
 
 
-@app.route("/_doubleagent/info", methods=["GET"])
-def info():
-    return jsonify({
+@app.get("/_doubleagent/info")
+async def info():
+    """Service info - OPTIONAL."""
+    return {
         "name": "github",
         "version": "1.0",
         "endpoints": {
@@ -127,156 +213,174 @@ def info():
             "issues": len(state["issues"]),
             "pulls": len(state["pulls"]),
         }
-    })
+    }
 
 
 # =============================================================================
 # User endpoints
 # =============================================================================
 
-@app.route("/user", methods=["GET"])
-def get_authenticated_user():
+@app.get("/user")
+async def get_authenticated_user():
     """Get the authenticated user."""
-    return jsonify(DEFAULT_USER)
+    return DEFAULT_USER
 
 
-@app.route("/users/<login>", methods=["GET"])
-def get_user(login):
+@app.get("/users/{login}")
+async def get_user(login: str):
     """Get a user by login."""
     if login in state["users"]:
-        return jsonify(state["users"][login])
-    return jsonify({
+        return state["users"][login]
+    return {
         "login": login,
         "id": hash(login) % 1000000,
         "type": "User",
         "site_admin": False,
-    })
+    }
 
 
 # =============================================================================
 # Repository endpoints
 # =============================================================================
 
-@app.route("/user/repos", methods=["GET", "POST"])
-def user_repos():
-    """List or create repos for authenticated user."""
-    if request.method == "GET":
-        repos = [r for r in state["repos"].values() 
-                 if r["owner"]["login"] == DEFAULT_USER["login"]]
-        return jsonify(repos)
-    
-    # POST - create repo
-    data = request.json
+@app.get("/user/repos")
+async def list_user_repos():
+    """List repos for authenticated user."""
+    repos = [r for r in state["repos"].values() 
+             if r["owner"]["login"] == DEFAULT_USER["login"]]
+    return repos
+
+
+@app.post("/user/repos", status_code=201)
+async def create_user_repo(repo: RepoCreate):
+    """Create a repo for authenticated user."""
     repo_id = next_id("repo_id")
-    name = data["name"]
-    key = f"{DEFAULT_USER['login']}/{name}"
+    key = f"{DEFAULT_USER['login']}/{repo.name}"
     
-    repo = {
+    repo_obj = {
         "id": repo_id,
-        "name": name,
+        "name": repo.name,
         "full_name": key,
         "owner": DEFAULT_USER,
-        "private": data.get("private", False),
-        "description": data.get("description", ""),
+        "private": repo.private,
+        "description": repo.description,
         "default_branch": "main",
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z",
         "html_url": f"https://github.com/{key}",
         "clone_url": f"https://github.com/{key}.git",
     }
-    state["repos"][key] = repo
+    state["repos"][key] = repo_obj
     
-    return jsonify(repo), 201
+    return repo_obj
 
 
-@app.route("/repos/<owner>/<repo>", methods=["GET", "PATCH", "DELETE"])
-def repo_detail(owner, repo):
-    """Get, update, or delete a repository."""
+@app.get("/repos/{owner}/{repo}")
+async def get_repo(owner: str, repo: str):
+    """Get a repository."""
     key = f"{owner}/{repo}"
+    if key not in state["repos"]:
+        raise HTTPException(status_code=404, detail={"message": "Not Found"})
+    return state["repos"][key]
+
+
+@app.patch("/repos/{owner}/{repo}")
+async def update_repo(owner: str, repo: str, update: RepoUpdate):
+    """Update a repository."""
+    key = f"{owner}/{repo}"
+    if key not in state["repos"]:
+        raise HTTPException(status_code=404, detail={"message": "Not Found"})
     
-    if request.method == "GET":
-        if key not in state["repos"]:
-            return jsonify({"message": "Not Found"}), 404
-        return jsonify(state["repos"][key])
+    repo_obj = state["repos"][key]
+    if update.description is not None:
+        repo_obj["description"] = update.description
+    if update.private is not None:
+        repo_obj["private"] = update.private
+    if update.default_branch is not None:
+        repo_obj["default_branch"] = update.default_branch
     
-    if request.method == "PATCH":
-        if key not in state["repos"]:
-            return jsonify({"message": "Not Found"}), 404
-        data = request.json
-        repo_obj = state["repos"][key]
-        if "description" in data:
-            repo_obj["description"] = data["description"]
-        if "private" in data:
-            repo_obj["private"] = data["private"]
-        if "default_branch" in data:
-            repo_obj["default_branch"] = data["default_branch"]
-        return jsonify(repo_obj)
-    
-    if request.method == "DELETE":
-        if key in state["repos"]:
-            del state["repos"][key]
-        return "", 204
+    return repo_obj
+
+
+@app.delete("/repos/{owner}/{repo}", status_code=204)
+async def delete_repo(owner: str, repo: str):
+    """Delete a repository."""
+    key = f"{owner}/{repo}"
+    if key in state["repos"]:
+        del state["repos"][key]
+    return None
 
 
 # =============================================================================
 # Issue endpoints
 # =============================================================================
 
-@app.route("/repos/<owner>/<repo>/issues", methods=["GET", "POST"])
-def repo_issues(owner, repo):
-    """List or create issues."""
+@app.get("/repos/{owner}/{repo}/issues")
+async def list_issues(owner: str, repo: str, state_filter: str = "open"):
+    """List issues for a repository."""
     key = f"{owner}/{repo}"
-    
-    if request.method == "GET":
-        filter_state = request.args.get("state", "open")
-        issues = [i for i in state["issues"].values() 
-                  if i["repo_key"] == key and 
-                  (filter_state == "all" or i["state"] == filter_state)]
-        return jsonify(issues)
-    
-    # POST - create issue
+    issues = [i for i in state["issues"].values() 
+              if i["repo_key"] == key and 
+              (state_filter == "all" or i["state"] == state_filter)]
+    return issues
+
+
+@app.post("/repos/{owner}/{repo}/issues", status_code=201)
+async def create_issue(owner: str, repo: str, issue: IssueCreate):
+    """Create an issue."""
+    key = f"{owner}/{repo}"
     if key not in state["repos"]:
-        return jsonify({"message": "Not Found"}), 404
+        raise HTTPException(status_code=404, detail={"message": "Not Found"})
     
-    data = request.json
     issue_id = next_id("issue_id")
     
     # Count existing issues for this repo to get number
     repo_issues = [i for i in state["issues"].values() if i["repo_key"] == key]
     number = len(repo_issues) + 1
     
-    issue = {
+    issue_obj = {
         "id": issue_id,
         "number": number,
-        "title": data["title"],
-        "body": data.get("body", ""),
+        "title": issue.title,
+        "body": issue.body,
         "state": "open",
         "repo_key": key,
         "user": DEFAULT_USER,
-        "labels": data.get("labels", []),
-        "assignees": data.get("assignees", []),
+        "labels": issue.labels,
+        "assignees": issue.assignees,
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z",
         "html_url": f"https://github.com/{key}/issues/{number}",
     }
-    state["issues"][issue_id] = issue
+    state["issues"][issue_id] = issue_obj
     
     # Dispatch webhooks
-    dispatch_webhook(owner, repo, "issues", {
+    await dispatch_webhook(owner, repo, "issues", {
         "action": "opened",
-        "issue": issue,
+        "issue": issue_obj,
         "repository": state["repos"].get(key, {}),
     })
     
-    return jsonify(issue), 201
+    return issue_obj
 
 
-@app.route("/repos/<owner>/<repo>/issues/<int:issue_number>", methods=["GET", "PATCH"])
-def issue_detail(owner, repo, issue_number):
-    """Get or update an issue."""
+@app.get("/repos/{owner}/{repo}/issues/{issue_number}")
+async def get_issue(owner: str, repo: str, issue_number: int):
+    """Get an issue by number."""
     key = f"{owner}/{repo}"
     
-    # Find issue by number
+    for i in state["issues"].values():
+        if i["repo_key"] == key and i["number"] == issue_number:
+            return i
+    
+    raise HTTPException(status_code=404, detail={"message": "Not Found"})
+
+
+@app.patch("/repos/{owner}/{repo}/issues/{issue_number}")
+async def update_issue(owner: str, repo: str, issue_number: int, update: IssueUpdate):
+    """Update an issue."""
+    key = f"{owner}/{repo}"
+    
     issue = None
     for i in state["issues"].values():
         if i["repo_key"] == key and i["number"] == issue_number:
@@ -284,72 +388,67 @@ def issue_detail(owner, repo, issue_number):
             break
     
     if not issue:
-        return jsonify({"message": "Not Found"}), 404
+        raise HTTPException(status_code=404, detail={"message": "Not Found"})
     
-    if request.method == "GET":
-        return jsonify(issue)
-    
-    # PATCH - update issue
-    data = request.json
     old_state = issue["state"]
     
-    if "title" in data:
-        issue["title"] = data["title"]
-    if "body" in data:
-        issue["body"] = data["body"]
-    if "state" in data:
-        issue["state"] = data["state"]
-    if "labels" in data:
-        issue["labels"] = data["labels"]
-    if "assignees" in data:
-        issue["assignees"] = data["assignees"]
+    if update.title is not None:
+        issue["title"] = update.title
+    if update.body is not None:
+        issue["body"] = update.body
+    if update.state is not None:
+        issue["state"] = update.state
+    if update.labels is not None:
+        issue["labels"] = update.labels
+    if update.assignees is not None:
+        issue["assignees"] = update.assignees
     
     # Dispatch webhook if state changed
-    if data.get("state") and data["state"] != old_state:
-        dispatch_webhook(owner, repo, "issues", {
-            "action": "closed" if data["state"] == "closed" else "reopened",
+    if update.state and update.state != old_state:
+        await dispatch_webhook(owner, repo, "issues", {
+            "action": "closed" if update.state == "closed" else "reopened",
             "issue": issue,
             "repository": state["repos"].get(key, {}),
         })
     
-    return jsonify(issue)
+    return issue
 
 
 # =============================================================================
 # Pull Request endpoints
 # =============================================================================
 
-@app.route("/repos/<owner>/<repo>/pulls", methods=["GET", "POST"])
-def repo_pulls(owner, repo):
-    """List or create pull requests."""
+@app.get("/repos/{owner}/{repo}/pulls")
+async def list_pulls(owner: str, repo: str, state_filter: str = "open"):
+    """List pull requests for a repository."""
     key = f"{owner}/{repo}"
-    
-    if request.method == "GET":
-        filter_state = request.args.get("state", "open")
-        pulls = [p for p in state["pulls"].values() 
-                 if p["repo_key"] == key and 
-                 (filter_state == "all" or p["state"] == filter_state)]
-        return jsonify(pulls)
-    
-    # POST - create PR
+    pulls = [p for p in state["pulls"].values() 
+             if p["repo_key"] == key and 
+             (state_filter == "all" or p["state"] == state_filter)]
+    return pulls
+
+
+@app.post("/repos/{owner}/{repo}/pulls", status_code=201)
+async def create_pull(owner: str, repo: str, pull: PullCreate):
+    """Create a pull request."""
+    key = f"{owner}/{repo}"
     if key not in state["repos"]:
-        return jsonify({"message": "Not Found"}), 404
+        raise HTTPException(status_code=404, detail={"message": "Not Found"})
     
-    data = request.json
     pull_id = next_id("pull_id")
     
     # Count existing PRs for number
     repo_pulls = [p for p in state["pulls"].values() if p["repo_key"] == key]
     number = len(repo_pulls) + 1
     
-    pull = {
+    pull_obj = {
         "id": pull_id,
         "number": number,
-        "title": data["title"],
-        "body": data.get("body", ""),
+        "title": pull.title,
+        "body": pull.body,
         "state": "open",
-        "head": {"ref": data["head"], "sha": "abc123"},
-        "base": {"ref": data["base"], "sha": "def456"},
+        "head": {"ref": pull.head, "sha": "abc123"},
+        "base": {"ref": pull.base, "sha": "def456"},
         "repo_key": key,
         "user": DEFAULT_USER,
         "created_at": "2024-01-01T00:00:00Z",
@@ -358,21 +457,33 @@ def repo_pulls(owner, repo):
         "mergeable": True,
         "html_url": f"https://github.com/{key}/pull/{number}",
     }
-    state["pulls"][pull_id] = pull
+    state["pulls"][pull_id] = pull_obj
     
     # Dispatch webhook
-    dispatch_webhook(owner, repo, "pull_request", {
+    await dispatch_webhook(owner, repo, "pull_request", {
         "action": "opened",
-        "pull_request": pull,
+        "pull_request": pull_obj,
         "repository": state["repos"].get(key, {}),
     })
     
-    return jsonify(pull), 201
+    return pull_obj
 
 
-@app.route("/repos/<owner>/<repo>/pulls/<int:pull_number>", methods=["GET", "PATCH"])
-def pull_detail(owner, repo, pull_number):
-    """Get or update a pull request."""
+@app.get("/repos/{owner}/{repo}/pulls/{pull_number}")
+async def get_pull(owner: str, repo: str, pull_number: int):
+    """Get a pull request by number."""
+    key = f"{owner}/{repo}"
+    
+    for p in state["pulls"].values():
+        if p["repo_key"] == key and p["number"] == pull_number:
+            return p
+    
+    raise HTTPException(status_code=404, detail={"message": "Not Found"})
+
+
+@app.patch("/repos/{owner}/{repo}/pulls/{pull_number}")
+async def update_pull(owner: str, repo: str, pull_number: int, update: PullUpdate):
+    """Update a pull request."""
     key = f"{owner}/{repo}"
     
     pull = None
@@ -382,74 +493,73 @@ def pull_detail(owner, repo, pull_number):
             break
     
     if not pull:
-        return jsonify({"message": "Not Found"}), 404
+        raise HTTPException(status_code=404, detail={"message": "Not Found"})
     
-    if request.method == "GET":
-        return jsonify(pull)
+    if update.title is not None:
+        pull["title"] = update.title
+    if update.body is not None:
+        pull["body"] = update.body
+    if update.state is not None:
+        pull["state"] = update.state
     
-    # PATCH - update PR
-    data = request.json
-    if "title" in data:
-        pull["title"] = data["title"]
-    if "body" in data:
-        pull["body"] = data["body"]
-    if "state" in data:
-        pull["state"] = data["state"]
-    
-    return jsonify(pull)
+    return pull
 
 
 # =============================================================================
 # Webhook endpoints
 # =============================================================================
 
-@app.route("/repos/<owner>/<repo>/hooks", methods=["GET", "POST"])
-def repo_hooks(owner, repo):
-    """List or create webhooks."""
+@app.get("/repos/{owner}/{repo}/hooks")
+async def list_hooks(owner: str, repo: str):
+    """List webhooks for a repository."""
     key = f"{owner}/{repo}"
-    
-    if request.method == "GET":
-        hooks = state["webhooks"].get(key, [])
-        return jsonify(hooks)
-    
-    # POST - create webhook
-    data = request.json
+    return state["webhooks"].get(key, [])
+
+
+@app.post("/repos/{owner}/{repo}/hooks", status_code=201)
+async def create_hook(owner: str, repo: str, webhook: WebhookCreate):
+    """Create a webhook."""
+    key = f"{owner}/{repo}"
     webhook_id = next_id("webhook_id")
     
     hook = {
         "id": webhook_id,
-        "url": data["config"]["url"],
-        "events": data.get("events", ["*"]),
+        "url": webhook.config.url,
+        "events": webhook.events,
         "active": True,
-        "config": data["config"],
+        "config": webhook.config.model_dump(),
     }
     
     if key not in state["webhooks"]:
         state["webhooks"][key] = []
     state["webhooks"][key].append(hook)
     
-    return jsonify(hook), 201
+    return hook
 
 
-@app.route("/repos/<owner>/<repo>/hooks/<int:hook_id>", methods=["GET", "DELETE"])
-def hook_detail(owner, repo, hook_id):
-    """Get or delete a webhook."""
+@app.get("/repos/{owner}/{repo}/hooks/{hook_id}")
+async def get_hook(owner: str, repo: str, hook_id: int):
+    """Get a webhook by ID."""
     key = f"{owner}/{repo}"
     hooks = state["webhooks"].get(key, [])
     
-    hook = next((h for h in hooks if h["id"] == hook_id), None)
-    if not hook:
-        return jsonify({"message": "Not Found"}), 404
+    for hook in hooks:
+        if hook["id"] == hook_id:
+            return hook
     
-    if request.method == "GET":
-        return jsonify(hook)
-    
-    # DELETE
+    raise HTTPException(status_code=404, detail={"message": "Not Found"})
+
+
+@app.delete("/repos/{owner}/{repo}/hooks/{hook_id}", status_code=204)
+async def delete_hook(owner: str, repo: str, hook_id: int):
+    """Delete a webhook."""
+    key = f"{owner}/{repo}"
+    hooks = state["webhooks"].get(key, [])
     state["webhooks"][key] = [h for h in hooks if h["id"] != hook_id]
-    return "", 204
+    return None
 
 
-def dispatch_webhook(owner, repo, event_type, payload):
+async def dispatch_webhook(owner: str, repo: str, event_type: str, payload: dict) -> None:
     """Dispatch webhooks asynchronously."""
     key = f"{owner}/{repo}"
     hooks = state["webhooks"].get(key, [])
@@ -460,25 +570,23 @@ def dispatch_webhook(owner, repo, event_type, payload):
         if event_type not in hook["events"] and "*" not in hook["events"]:
             continue
         
-        # Fire in background thread
-        threading.Thread(
-            target=_send_webhook,
-            args=(hook["url"], event_type, payload)
-        ).start()
+        # Fire in background task
+        asyncio.create_task(_send_webhook(hook["url"], event_type, payload))
 
 
-def _send_webhook(url, event_type, payload):
-    """Send webhook (runs in background thread)."""
+async def _send_webhook(url: str, event_type: str, payload: dict) -> None:
+    """Send webhook (runs as background task)."""
     try:
-        requests.post(
-            url,
-            json=payload,
-            headers={
-                "X-GitHub-Event": event_type,
-                "Content-Type": "application/json",
-            },
-            timeout=5
-        )
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                url,
+                json=payload,
+                headers={
+                    "X-GitHub-Event": event_type,
+                    "Content-Type": "application/json",
+                },
+                timeout=5.0,
+            )
     except Exception:
         pass  # Webhook delivery is best-effort
 
@@ -488,5 +596,6 @@ def _send_webhook(url, event_type, payload):
 # =============================================================================
 
 if __name__ == "__main__":
+    import uvicorn
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")

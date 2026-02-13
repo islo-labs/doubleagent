@@ -23,8 +23,8 @@ Before implementing, collect:
 services/{service-name}/
 ├── service.yaml        # Service definition
 ├── server/
-│   ├── main.py         # HTTP server (Flask recommended)
-│   └── requirements.txt
+│   ├── main.py         # HTTP server (FastAPI recommended)
+│   └── pyproject.toml
 ├── contracts/
 │   ├── conftest.py     # pytest fixtures with official SDK
 │   ├── test_*.py       # Contract tests
@@ -38,22 +38,25 @@ services/{service-name}/
 Every service MUST implement these `/_doubleagent` endpoints:
 
 ```python
-@app.route("/_doubleagent/health", methods=["GET"])
-def health():
-    return jsonify({"status": "healthy"})
+from fastapi import FastAPI
 
-@app.route("/_doubleagent/reset", methods=["POST"])
-def reset():
+app = FastAPI()
+
+@app.get("/_doubleagent/health")
+async def health():
+    return {"status": "healthy"}
+
+@app.post("/_doubleagent/reset")
+async def reset():
     # Clear all in-memory state
     global state
     state = initial_state()
-    return jsonify({"status": "ok"})
+    return {"status": "ok"}
 
-@app.route("/_doubleagent/seed", methods=["POST"])
-def seed():
-    data = request.json
+@app.post("/_doubleagent/seed")
+async def seed(data: dict):
     # Populate state from data
-    return jsonify({"status": "ok", "seeded": counts})
+    return {"status": "ok", "seeded": counts}
 ```
 
 ### 4. Implement API Endpoints
@@ -119,11 +122,13 @@ def next_id(key):
 Match the real API's error format:
 
 ```python
+from fastapi import HTTPException
+
 # GitHub-style errors
-return jsonify({"message": "Not Found"}), 404
+raise HTTPException(status_code=404, detail={"message": "Not Found"})
 
 # Jira-style errors
-return jsonify({"errorMessages": ["Issue not found"]}), 404
+raise HTTPException(status_code=404, detail={"errorMessages": ["Issue not found"]})
 ```
 
 ### Pagination
@@ -131,16 +136,14 @@ return jsonify({"errorMessages": ["Issue not found"]}), 404
 If the real API paginates, implement it:
 
 ```python
-@app.route("/items")
-def list_items():
-    page = int(request.args.get("page", 1))
-    per_page = int(request.args.get("per_page", 30))
-    
+from fastapi import Query
+
+@app.get("/items")
+async def list_items(page: int = Query(1), per_page: int = Query(30)):
     items = list(state["items"].values())
     start = (page - 1) * per_page
     end = start + per_page
-    
-    return jsonify(items[start:end])
+    return items[start:end]
 ```
 
 ### Webhooks
@@ -148,17 +151,18 @@ def list_items():
 If the real API has webhooks:
 
 ```python
-import threading
-import requests
+import asyncio
+import httpx
 
-def dispatch_webhook(resource_key, event_type, payload):
+async def dispatch_webhook(resource_key, event_type, payload):
     for hook in webhooks.get(resource_key, []):
-        threading.Thread(
-            target=requests.post,
-            args=(hook["url"],),
-            kwargs={"json": payload},
-            daemon=True
-        ).start()
+        asyncio.create_task(
+            _send_webhook(hook["url"], event_type, payload)
+        )
+
+async def _send_webhook(url, event_type, payload):
+    async with httpx.AsyncClient() as client:
+        await client.post(url, json=payload, headers={"X-Event-Type": event_type})
 ```
 
 ## Common Patterns
@@ -167,8 +171,8 @@ def dispatch_webhook(resource_key, event_type, payload):
 
 ```python
 # Nested resources: /repos/{owner}/{repo}/issues
-@app.route("/repos/<owner>/<repo>/issues", methods=["POST"])
-def create_issue(owner, repo):
+@app.post("/repos/{owner}/{repo}/issues")
+async def create_issue(owner: str, repo: str, issue: IssueCreate):
     repo_key = f"{owner}/{repo}"
     ...
 ```
@@ -177,9 +181,8 @@ def create_issue(owner, repo):
 
 ```python
 # Query parameters: /search?jql=project=TEST
-@app.route("/search")
-def search():
-    jql = request.args.get("jql", "")
+@app.get("/search")
+async def search(jql: str = ""):
     ...
 ```
 
@@ -187,13 +190,13 @@ def search():
 
 ```python
 # OAuth-style: /oauth/token
-@app.route("/oauth/token", methods=["POST"])
-def get_token():
-    return jsonify({
+@app.post("/oauth/token")
+async def get_token():
+    return {
         "access_token": "fake-token",
         "token_type": "Bearer",
         "expires_in": 3600,
-    })
+    }
 ```
 
 ## Checklist

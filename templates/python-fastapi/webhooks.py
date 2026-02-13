@@ -2,11 +2,13 @@
 Webhook support for DoubleAgent services.
 
 Optional helper for services that need webhook functionality.
+Uses async httpx for non-blocking webhook delivery.
 """
 
-import threading
-import requests
+import asyncio
 from typing import Any
+
+import httpx
 
 # In-memory webhook storage
 # Key: resource identifier (e.g., "org/repo")
@@ -63,11 +65,15 @@ def list_webhooks(resource_key: str) -> list[dict]:
     return webhooks.get(resource_key, [])
 
 
-def dispatch_webhook(resource_key: str, event_type: str, payload: dict[str, Any]) -> None:
+async def dispatch_webhook(
+    resource_key: str, 
+    event_type: str, 
+    payload: dict[str, Any]
+) -> None:
     """
     Dispatch webhooks asynchronously.
     
-    Fires matching webhooks in background threads (doesn't block).
+    Fires matching webhooks as background tasks (doesn't block).
     
     Args:
         resource_key: Identifier for the resource
@@ -82,26 +88,25 @@ def dispatch_webhook(resource_key: str, event_type: str, payload: dict[str, Any]
         if event_type not in hook["events"] and "*" not in hook["events"]:
             continue
         
-        # Fire in background thread
-        threading.Thread(
-            target=_send_webhook,
-            args=(hook["url"], event_type, payload),
-            daemon=True,
-        ).start()
-
-
-def _send_webhook(url: str, event_type: str, payload: dict) -> None:
-    """Send webhook (runs in background thread)."""
-    try:
-        requests.post(
-            url,
-            json=payload,
-            headers={
-                "X-Event-Type": event_type,
-                "Content-Type": "application/json",
-            },
-            timeout=5,
+        # Fire as background task
+        asyncio.create_task(
+            _send_webhook(hook["url"], event_type, payload)
         )
+
+
+async def _send_webhook(url: str, event_type: str, payload: dict) -> None:
+    """Send webhook (runs as background task)."""
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                url,
+                json=payload,
+                headers={
+                    "X-Event-Type": event_type,
+                    "Content-Type": "application/json",
+                },
+                timeout=5.0,
+            )
     except Exception:
         # Webhook delivery is best-effort
         pass

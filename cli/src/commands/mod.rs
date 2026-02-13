@@ -96,6 +96,6 @@ pub struct NewArgs {
     pub name: String,
     
     /// Template to use
-    #[arg(short, long, default_value = "python-flask")]
+    #[arg(short, long, default_value = "python-fastapi")]
     pub template: String,
 }

@@ -5,7 +5,7 @@ You are tasked with adding a new fake service to DoubleAgent. Follow these steps
 ## Context
 
 DoubleAgent provides fake SaaS APIs for AI agent testing. Services are:
-- Standalone HTTP servers (any language, Flask/Express recommended)
+- Standalone HTTP servers (any language, FastAPI/Express recommended)
 - Contract-tested using official SDKs
 - Designed to be drop-in replacements for real APIs
 
@@ -36,7 +36,7 @@ description: {description}
 docs: {api_docs_url}
 
 server:
-  command: ["python", "main.py"]
+  command: ["uv", "run", "python", "main.py"]
   port: 8080
 
 contracts:
@@ -59,35 +59,51 @@ env:
 
 ```python
 import os
-from flask import Flask, request, jsonify
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
-app = Flask(__name__)
+app = FastAPI()
 
 # State
 state = {...}
 counters = {...}
 
 # REQUIRED: /_doubleagent endpoints
-@app.route("/_doubleagent/health", methods=["GET"])
-def health():
-    return jsonify({"status": "healthy"})
+@app.get("/_doubleagent/health")
+async def health():
+    return {"status": "healthy"}
 
-@app.route("/_doubleagent/reset", methods=["POST"])
-def reset():
+@app.post("/_doubleagent/reset")
+async def reset():
     # Reset all state
-    return jsonify({"status": "ok"})
+    return {"status": "ok"}
 
-@app.route("/_doubleagent/seed", methods=["POST"])
-def seed():
-    # Seed from request.json
-    return jsonify({"status": "ok", "seeded": {}})
+@app.post("/_doubleagent/seed")
+async def seed(data: dict):
+    # Seed from data
+    return {"status": "ok", "seeded": {}}
 
 # API endpoints
 # ... implement based on API docs ...
 
 if __name__ == "__main__":
+    import uvicorn
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port)
+```
+
+**services/{service_name}/server/pyproject.toml:**
+```toml
+[project]
+name = "{service_name}-fake"
+version = "1.0.0"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.0.0",
+]
 ```
 
 ### Step 4: Write Contract Tests
@@ -128,8 +144,8 @@ class Test{Resource}:
 
 ```bash
 # Install dependencies
-pip install -r services/{service_name}/server/requirements.txt
-pip install -r services/{service_name}/contracts/requirements.txt
+cd services/{service_name}/server
+uv sync
 
 # Test against fake
 cd services/{service_name}/contracts

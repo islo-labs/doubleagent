@@ -8,7 +8,7 @@ DoubleAgent is designed to be contributed to by both humans and AI agents.
 
 ```bash
 # Scaffold from template
-doubleagent new my-service --template python-flask
+doubleagent new my-service --template python-fastapi
 
 # Or manually create structure:
 mkdir -p services/my-service/{server,contracts,fixtures}
@@ -26,29 +26,35 @@ Services are standalone HTTP servers. Use any language/framework you prefer.
 | `/_doubleagent/reset` | POST | Clear all state |
 | `/_doubleagent/seed` | POST | Seed state from JSON body |
 
-**Example (Python/Flask):**
+**Example (Python/FastAPI):**
 
 ```python
-from flask import Flask, request, jsonify
+import os
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
-app = Flask(__name__)
+app = FastAPI()
 
-@app.route("/_doubleagent/health")
-def health():
-    return jsonify({"status": "healthy"})
+@app.get("/_doubleagent/health")
+async def health():
+    return {"status": "healthy"}
 
-@app.route("/_doubleagent/reset", methods=["POST"])
-def reset():
+@app.post("/_doubleagent/reset")
+async def reset():
     # Clear your state here
-    return jsonify({"status": "ok"})
+    return {"status": "ok"}
 
-@app.route("/_doubleagent/seed", methods=["POST"])
-def seed():
-    data = request.json
+@app.post("/_doubleagent/seed")
+async def seed(data: dict):
     # Seed your state here
-    return jsonify({"status": "ok", "seeded": {...}})
+    return {"status": "ok", "seeded": {...}}
 
 # Add your API endpoints...
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)
 ```
 
 ### Step 3: Create service.yaml
@@ -60,7 +66,7 @@ description: Description of what this service fakes
 docs: https://api.example.com/docs
 
 server:
-  command: ["python", "main.py"]
+  command: ["uv", "run", "python", "main.py"]
   port: 8080
 
 contracts:

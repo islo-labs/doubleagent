@@ -19,7 +19,7 @@ pub async fn run(args: NewArgs) -> anyhow::Result<()> {
     let template_dir = config.templates_dir.join(&args.template);
     if !template_dir.exists() {
         return Err(anyhow::anyhow!(
-            "Template {} not found. Available templates: python-flask, typescript-express",
+            "Template {} not found. Available templates: python-fastapi, typescript-express",
             args.template
         ));
     }
