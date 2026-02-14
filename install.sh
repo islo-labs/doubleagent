@@ -12,14 +12,15 @@ case "$OS" in
   darwin)
     case "$ARCH" in
       arm64|aarch64) TARGET="aarch64-apple-darwin" ;;
-      x86_64) echo "Error: macOS x86_64 not supported yet"; exit 1 ;;
+      x86_64) TARGET="x86_64-apple-darwin" ;;
       *) echo "Error: Unsupported architecture: $ARCH"; exit 1 ;;
     esac
     ;;
   linux)
+    # Use musl for static linking - works on any Linux distro
     case "$ARCH" in
-      x86_64) TARGET="x86_64-unknown-linux-gnu" ;;
-      aarch64|arm64) TARGET="aarch64-unknown-linux-gnu" ;;
+      x86_64) TARGET="x86_64-unknown-linux-musl" ;;
+      aarch64|arm64) TARGET="aarch64-unknown-linux-musl" ;;
       *) echo "Error: Unsupported architecture: $ARCH"; exit 1 ;;
     esac
     ;;
