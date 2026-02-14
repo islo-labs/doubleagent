@@ -24,36 +24,81 @@ env:
   BINARY_NAME: doubleagent
 
 jobs:
-  build:
+  # Linux builds using cross (runs on ubuntu, uses Docker for cross-compilation)
+  build-linux:
     name: Build ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            archive: tar.gz
-          - target: x86_64-apple-darwin
-            os: macos-latest
-            archive: tar.gz
-          - target: aarch64-apple-darwin
-            os: macos-latest
-            archive: tar.gz
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            archive: zip
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required for tag detection
+          fetch-depth: 0
 
       - name: Get latest tag
         id: tag
-        shell: bash
+        run: |
+          git fetch --tags
+          TAG=$(git describe --tags --abbrev=0)
+          echo "TAG=${TAG}" >> $GITHUB_OUTPUT
+          echo "VERSION=${TAG#v}" >> $GITHUB_OUTPUT
+          git checkout "${TAG}"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli -> target
+
+      - name: Build release binary with cross
+        working-directory: cli
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Package binary
+        run: |
+          mkdir -p release
+          cp cli/target/${{ matrix.target }}/release/${{ env.BINARY_NAME }} release/
+          cd release
+          tar -czvf ${{ env.BINARY_NAME }}-${{ steps.tag.outputs.VERSION }}-${{ matrix.target }}.tar.gz ${{ env.BINARY_NAME }}
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.TAG }}
+          files: release/${{ env.BINARY_NAME }}-${{ steps.tag.outputs.VERSION }}-${{ matrix.target }}.tar.gz
+
+  # macOS builds (native compilation required due to Apple licensing)
+  build-macos:
+    name: Build ${{ matrix.target }}
+    runs-on: macos-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest tag
+        id: tag
         run: |
           git fetch --tags
           TAG=$(git describe --tags --abbrev=0)
@@ -73,26 +118,15 @@ jobs:
         working-directory: cli
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Package binary (Unix)
-        if: matrix.os != 'windows-latest'
-        shell: bash
+      - name: Package binary
         run: |
           mkdir -p release
           cp cli/target/${{ matrix.target }}/release/${{ env.BINARY_NAME }} release/
           cd release
-          tar -czvf ${{ env.BINARY_NAME }}-${{ steps.tag.outputs.VERSION }}-${{ matrix.target }}.${{ matrix.archive }} ${{ env.BINARY_NAME }}
-
-      - name: Package binary (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path release
-          Copy-Item "cli/target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}.exe" -Destination release/
-          Compress-Archive -Path "release/${{ env.BINARY_NAME }}.exe" -DestinationPath "release/${{ env.BINARY_NAME }}-${{ steps.tag.outputs.VERSION }}-${{ matrix.target }}.${{ matrix.archive }}"
+          tar -czvf ${{ env.BINARY_NAME }}-${{ steps.tag.outputs.VERSION }}-${{ matrix.target }}.tar.gz ${{ env.BINARY_NAME }}
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.TAG }}
-          files: |
-            release/${{ env.BINARY_NAME }}-${{ steps.tag.outputs.VERSION }}-${{ matrix.target }}.${{ matrix.archive }}
+          files: release/${{ env.BINARY_NAME }}-${{ steps.tag.outputs.VERSION }}-${{ matrix.target }}.tar.gz
