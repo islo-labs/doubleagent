@@ -24,7 +24,7 @@ DoubleAgent gives you **fakes that behave like the real thing**  -  isolated per
 
 ```bash
 # Install
-curl -sSL https://doubleagent.dev/install.sh | sh
+curl -sSL https://raw.githubusercontent.com/islo-labs/doubleagent/main/install.sh | bash
 
 # Start a service
 doubleagent start github
