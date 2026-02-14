@@ -41,7 +41,7 @@ doubleagent start github
 ```bash
 doubleagent start github              # Start on default port
 doubleagent start github --port 9000  # Custom port
-doubleagent start github slack       # Multiple services
+doubleagent start github slack        # Multiple services
 
 doubleagent status                    # Show running services
 doubleagent stop                      # Stop all
@@ -49,41 +49,30 @@ doubleagent reset github              # Clear state
 doubleagent seed github ./data.yaml   # Load fixtures
 ```
 
-### Python SDK
+When a service starts, the CLI prints the environment variable to use:
 
-```python
-from doubleagent import DoubleAgent
-import github
-
-async with DoubleAgent() as da:
-    svc = await da.start("github")
-    
-    # Use official PyGithub SDK!
-    from github import Github
-    client = Github(base_url=svc.url, login_or_token="fake-token")
-
-    repo = client.get_user().create_repo("test-repo")
-    issue = repo.create_issue(title="Test issue")
-
-    # Reset between tests
-    await svc.reset()
+```bash
+$ doubleagent start github
+✓ github running on http://localhost:8080 (PID: 12345)
+  Export: DOUBLEAGENT_GITHUB_URL=http://localhost:8080
 ```
 
-### pytest
+### Using with Official SDKs
+
+Point the official SDK at the fake service URL:
 
 ```python
-import pytest
-from doubleagent.pytest import github_service
+import os
+from github import Github
 
-@pytest.fixture
-def github():
-    with github_service() as gh:
-        yield gh
+# Use the env var set by doubleagent start
+client = Github(
+    base_url=os.environ["DOUBLEAGENT_GITHUB_URL"],
+    login_or_token="fake-token"
+)
 
-def test_create_issue(github):
-    from github import Github
-    client = Github(base_url=github.url, login_or_token="fake")
-    # ... test code using official SDK
+repo = client.get_user().create_repo("test-repo")
+issue = repo.create_issue(title="Test issue")
 ```
 
 ## Fakes, Not Mocks

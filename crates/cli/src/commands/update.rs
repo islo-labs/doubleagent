@@ -1,11 +1,10 @@
 use super::UpdateArgs;
-use crate::config::Config;
-use crate::service::ServiceRegistry;
 use colored::Colorize;
+use doubleagent_core::{Config, ServiceRegistry};
 
 pub async fn run(args: UpdateArgs) -> anyhow::Result<()> {
     let config = Config::load()?;
-    let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url)?;
+    let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url, &config.branch)?;
 
     if args.services.is_empty() {
         // Update all installed services

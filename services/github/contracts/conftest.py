@@ -2,50 +2,29 @@
 pytest fixtures for GitHub contract tests.
 
 Uses the official PyGithub SDK to verify the fake works correctly.
+The service is started by the CLI before tests run.
 """
 
 import os
-import sys
+
+import httpx
 import pytest
-
-# Add parent directories to path for imports
-sys.path.insert(0, str(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))))
-sys.path.insert(0, str(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "sdk", "python")))
-
 from github import Github
-from doubleagent import DoubleAgent
 
-
-@pytest.fixture(scope="session")
-def doubleagent():
-    """Start DoubleAgent framework."""
-    da = DoubleAgent()
-    yield da
-    da.stop_all()
-
-
-@pytest.fixture(scope="session")
-def github_service(doubleagent):
-    """Start GitHub fake service."""
-    import asyncio
-    loop = asyncio.new_event_loop()
-    service = loop.run_until_complete(doubleagent.start("github", port=18080))
-    yield service
-    loop.close()
+SERVICE_URL = os.environ["DOUBLEAGENT_GITHUB_URL"]
 
 
 @pytest.fixture
-def github_client(github_service) -> Github:
+def github_client() -> Github:
     """Provides official PyGithub client configured for the fake."""
     return Github(
-        base_url=github_service.url,
+        base_url=SERVICE_URL,
         login_or_token="fake-token",
     )
 
 
 @pytest.fixture(autouse=True)
-def reset_fake(github_service):
+def reset_fake():
     """Reset fake state before each test."""
-    import httpx
-    httpx.post(f"{github_service.url}/_doubleagent/reset")
+    httpx.post(f"{SERVICE_URL}/_doubleagent/reset")
     yield

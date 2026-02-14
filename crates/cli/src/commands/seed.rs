@@ -1,7 +1,6 @@
 use super::SeedArgs;
-use crate::config::Config;
-use crate::process::ProcessManager;
 use colored::Colorize;
+use doubleagent_core::{Config, ProcessManager};
 use std::fs;
 
 pub async fn run(args: SeedArgs) -> anyhow::Result<()> {

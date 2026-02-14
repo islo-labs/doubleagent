@@ -1,5 +1,8 @@
+//! Process management for running DoubleAgent services.
+
 use crate::mise;
 use crate::service::ServiceDefinition;
+use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -7,11 +10,16 @@ use std::path::Path;
 use std::process::{Child, Stdio};
 use std::time::{Duration, Instant};
 
+/// Information about a running service.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceInfo {
+    /// Process ID
     pub pid: u32,
+    /// Port the service is running on
     pub port: u16,
+    /// Unix timestamp when the service was started
     pub started_at: String,
+    /// Path to the service directory
     pub service_path: String,
 }
 
@@ -20,6 +28,7 @@ struct State {
     services: HashMap<String, ServiceInfo>,
 }
 
+/// Manages running service processes.
 pub struct ProcessManager {
     state: State,
     #[allow(dead_code)]
@@ -27,7 +36,10 @@ pub struct ProcessManager {
 }
 
 impl ProcessManager {
-    pub fn load(state_file: &Path) -> anyhow::Result<Self> {
+    /// Load process state from a file.
+    ///
+    /// Automatically cleans up entries for dead processes.
+    pub fn load(state_file: &Path) -> Result<Self> {
         let state = if state_file.exists() {
             let content = fs::read_to_string(state_file)?;
             serde_json::from_str(&content).unwrap_or_default()
@@ -49,12 +61,14 @@ impl ProcessManager {
         })
     }
 
-    pub fn save(&self, state_file: &Path) -> anyhow::Result<()> {
+    /// Save process state to a file.
+    pub fn save(&self, state_file: &Path) -> Result<()> {
         let content = serde_json::to_string_pretty(&self.state)?;
         fs::write(state_file, content)?;
         Ok(())
     }
 
+    /// Check if a service is currently running.
     pub fn is_running(&self, name: &str) -> bool {
         if let Some(info) = self.state.services.get(name) {
             Self::process_alive(info.pid)
@@ -63,15 +77,20 @@ impl ProcessManager {
         }
     }
 
+    /// Get names of all running services.
     pub fn running_services(&self) -> Vec<String> {
         self.state.services.keys().cloned().collect()
     }
 
+    /// Get information about a running service.
     pub fn get_info(&self, name: &str) -> Option<ServiceInfo> {
         self.state.services.get(name).cloned()
     }
 
-    pub async fn start(&mut self, service: &ServiceDefinition, port: u16) -> anyhow::Result<u32> {
+    /// Start a service on the given port.
+    ///
+    /// Returns the process ID of the started service.
+    pub async fn start(&mut self, service: &ServiceDefinition, port: u16) -> Result<u32> {
         // Install mise tools if .mise.toml exists
         mise::install_tools(&service.path)?;
 
@@ -104,7 +123,8 @@ impl ProcessManager {
         Ok(pid)
     }
 
-    pub async fn stop(&mut self, name: &str) -> anyhow::Result<()> {
+    /// Stop a running service.
+    pub async fn stop(&mut self, name: &str) -> Result<()> {
         if let Some(info) = self.state.services.remove(name) {
             Self::kill_process(info.pid)?;
         }
@@ -112,12 +132,10 @@ impl ProcessManager {
         Ok(())
     }
 
-    pub async fn wait_for_health(
-        &self,
-        name: &str,
-        port: u16,
-        timeout_secs: u64,
-    ) -> anyhow::Result<()> {
+    /// Wait for a service to become healthy.
+    ///
+    /// Polls the health endpoint until it returns success or the timeout is reached.
+    pub async fn wait_for_health(&self, name: &str, port: u16, timeout_secs: u64) -> Result<()> {
         let url = format!("http://localhost:{}/_doubleagent/health", port);
         let client = reqwest::Client::new();
         let start = Instant::now();
@@ -125,10 +143,7 @@ impl ProcessManager {
 
         loop {
             if start.elapsed() > timeout {
-                return Err(anyhow::anyhow!(
-                    "Health check timed out after {}s",
-                    timeout_secs
-                ));
+                return Err(Error::HealthCheckTimeout(timeout_secs));
             }
 
             match client
@@ -144,7 +159,7 @@ impl ProcessManager {
                     // Check if process is still alive
                     if let Some(info) = self.state.services.get(name) {
                         if !Self::process_alive(info.pid) {
-                            return Err(anyhow::anyhow!("Service process died"));
+                            return Err(Error::ServiceProcessDied);
                         }
                     }
                     tokio::time::sleep(Duration::from_millis(500)).await;
@@ -153,7 +168,8 @@ impl ProcessManager {
         }
     }
 
-    pub async fn check_health_sync(&self, name: &str) -> bool {
+    /// Check if a service is healthy (async).
+    pub async fn check_health(&self, name: &str) -> bool {
         if let Some(info) = self.state.services.get(name) {
             let url = format!("http://localhost:{}/_doubleagent/health", info.port);
             let client = reqwest::Client::new();
@@ -172,12 +188,13 @@ impl ProcessManager {
         }
     }
 
+    /// Check if a process is alive using kill -0.
     fn process_alive(pid: u32) -> bool {
-        // Check if process exists using kill -0
         unsafe { libc::kill(pid as i32, 0) == 0 }
     }
 
-    fn kill_process(pid: u32) -> anyhow::Result<()> {
+    /// Kill a process by PID.
+    fn kill_process(pid: u32) -> Result<()> {
         unsafe {
             if libc::kill(pid as i32, libc::SIGTERM) != 0 {
                 // If SIGTERM fails, try SIGKILL
@@ -188,8 +205,8 @@ impl ProcessManager {
     }
 }
 
+/// Get current timestamp as a string (without chrono dependency).
 fn chrono_lite_now() -> String {
-    // Simple timestamp without chrono dependency
     use std::time::SystemTime;
     let duration = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)

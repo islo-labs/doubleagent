@@ -1,7 +1,6 @@
 use super::ResetArgs;
-use crate::config::Config;
-use crate::process::ProcessManager;
 use colored::Colorize;
+use doubleagent_core::{Config, ProcessManager};
 
 pub async fn run(args: ResetArgs) -> anyhow::Result<()> {
     let config = Config::load()?;

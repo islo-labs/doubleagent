@@ -1,0 +1,22 @@
+[package]
+name = "doubleagent-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core library for DoubleAgent - fake services for AI agents"
+license = "MIT"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+thiserror = "2"
+tracing = "0.1"
+dirs = "6"
+libc = "0.2"
+git2 = { version = "0.19", default-features = false, features = ["vendored-libgit2", "vendored-openssl", "https"] }
+which = "7"
+
+[dev-dependencies]
+tempfile = "3"

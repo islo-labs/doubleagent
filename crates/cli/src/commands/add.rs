@@ -1,12 +1,11 @@
 use super::AddArgs;
-use crate::config::Config;
 use crate::project_config::ProjectConfig;
-use crate::service::ServiceRegistry;
 use colored::Colorize;
+use doubleagent_core::{Config, ServiceRegistry};
 
 pub async fn run(args: AddArgs) -> anyhow::Result<()> {
     let config = Config::load()?;
-    let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url)?;
+    let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url, &config.branch)?;
 
     // Get services to add: from args or from project config
     let services: Vec<String> = if args.services.is_empty() {

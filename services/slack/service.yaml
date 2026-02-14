@@ -5,14 +5,13 @@ docs: https://api.slack.com/methods
 
 server:
   command: ["uv", "run", "python", "main.py"]
-  port: 8083
 
 contracts:
   command: ["uv", "run", "pytest", "-v", "--tb=short"]
 
-env:
-  SLACK_API_URL: "http://localhost:${port}"
-  SLACK_BOT_TOKEN: "xoxb-doubleagent-fake-token"
+# Environment variables set by the CLI when running contract tests:
+#   DOUBLEAGENT_SLACK_URL - URL of the running fake service (set automatically)
+#   PORT - Port the service listens on (set automatically)
 
 features:
   webhooks: true

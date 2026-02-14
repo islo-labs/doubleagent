@@ -75,17 +75,14 @@ jobs:
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: cli -> target
 
       - name: Build release binary
-        working-directory: cli
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release
 
       - name: Package binary
         run: |
           mkdir -p release
-          cp cli/target/${{ matrix.target }}/release/${{ env.BINARY_NAME }} release/
+          cp target/release/${{ env.BINARY_NAME }} release/
           cd release
           tar -czvf ${{ env.BINARY_NAME }}-${{ steps.tag.outputs.VERSION }}-${{ matrix.target }}.tar.gz ${{ env.BINARY_NAME }}
 
