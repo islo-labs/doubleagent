@@ -1,9 +1,13 @@
+//! Configuration management for DoubleAgent.
+
 use crate::git::DEFAULT_REPO_URL;
+use crate::Result;
 use std::path::PathBuf;
 
 /// Environment variable to override the services repository URL
 const REPO_URL_ENV: &str = "DOUBLEAGENT_SERVICES_REPO";
 
+/// Configuration for DoubleAgent operations.
 pub struct Config {
     /// Directory where services are cached (from remote repo)
     pub services_dir: PathBuf,
@@ -16,7 +20,10 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load() -> anyhow::Result<Self> {
+    /// Load configuration from default locations.
+    ///
+    /// Creates necessary directories if they don't exist.
+    pub fn load() -> Result<Self> {
         // Data directory: ~/.doubleagent
         let data_dir = dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
@@ -53,7 +60,7 @@ impl Config {
                 return Some(config_path);
             }
 
-            // Also check for .yaml extension
+            // Also check for .yml extension
             let config_path = dir.join("doubleagent.yml");
             if config_path.exists() {
                 return Some(config_path);

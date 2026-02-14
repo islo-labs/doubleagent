@@ -3,6 +3,7 @@
 //! When a service has a `.mise.toml` file, commands are wrapped with `mise exec --`
 //! to ensure the correct toolchain versions are used.
 
+use crate::{Error, Result};
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -17,13 +18,14 @@ pub fn is_mise_installed() -> bool {
 }
 
 /// Check that mise is installed, returning an error with installation instructions if not
-pub fn check_mise_installed() -> anyhow::Result<()> {
+pub fn check_mise_installed() -> Result<()> {
     if !is_mise_installed() {
-        return Err(anyhow::anyhow!(
+        return Err(Error::Other(
             "mise not found. This service requires mise for toolchain management.\n\n\
              Install mise:\n\
              curl https://mise.run | sh\n\n\
              More info: https://mise.jdx.dev/getting-started.html"
+                .to_string(),
         ));
     }
     Ok(())
@@ -33,7 +35,7 @@ pub fn check_mise_installed() -> anyhow::Result<()> {
 ///
 /// Runs `mise install` in the service directory to ensure all required tools
 /// are available before running commands.
-pub fn install_tools(service_path: &Path) -> anyhow::Result<()> {
+pub fn install_tools(service_path: &Path) -> Result<()> {
     if !has_mise_toml(service_path) {
         return Ok(());
     }
@@ -50,10 +52,10 @@ pub fn install_tools(service_path: &Path) -> anyhow::Result<()> {
         .status()?;
 
     if !status.success() {
-        return Err(anyhow::anyhow!(
+        return Err(Error::Other(format!(
             "Failed to install mise tools. Exit code: {:?}",
             status.code()
-        ));
+        )));
     }
 
     Ok(())
@@ -67,9 +69,9 @@ pub fn install_tools(service_path: &Path) -> anyhow::Result<()> {
 /// If .mise.toml doesn't exist, returns the original Command unchanged.
 ///
 /// Note: Call `install_tools` before this to ensure tools are available.
-pub fn build_command(service_path: &Path, command: &[String]) -> anyhow::Result<Command> {
+pub fn build_command(service_path: &Path, command: &[String]) -> Result<Command> {
     if command.is_empty() {
-        return Err(anyhow::anyhow!("Empty command provided"));
+        return Err(Error::Other("Empty command provided".to_string()));
     }
 
     if has_mise_toml(service_path) {

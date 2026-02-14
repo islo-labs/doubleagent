@@ -1,4 +1,6 @@
-use anyhow::{Context, Result};
+//! Git operations for fetching services from a remote monorepo.
+
+use crate::{Error, Result};
 use git2::{FetchOptions, Progress, RemoteCallbacks, Repository};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -33,7 +35,7 @@ impl ServiceFetcher {
         info!("Fetching service '{}' from {}", name, self.repo_url);
 
         // Ensure cache directory exists
-        fs::create_dir_all(&self.cache_dir).context("Failed to create cache directory")?;
+        fs::create_dir_all(&self.cache_dir)?;
 
         // Clone or update the repo
         self.ensure_repo_updated()?;
@@ -41,27 +43,28 @@ impl ServiceFetcher {
         // Check if service exists in repo (services are in the services/ subdirectory)
         let service_source = self.repo_cache_dir.join("services").join(name);
         if !service_source.exists() {
-            anyhow::bail!(
+            return Err(Error::ServiceNotFound(format!(
                 "Service '{}' not found in repository. Run 'doubleagent list --remote' to see available services.",
                 name
-            );
+            )));
         }
 
         // Check if it has a service.yaml
         if !service_source.join("service.yaml").exists() {
-            anyhow::bail!("Service '{}' is missing service.yaml file", name);
+            return Err(Error::Other(format!(
+                "Service '{}' is missing service.yaml file",
+                name
+            )));
         }
 
         // Copy service to cache
         let service_dest = self.cache_dir.join(name);
         if service_dest.exists() {
             debug!("Removing existing cached service at {:?}", service_dest);
-            fs::remove_dir_all(&service_dest)
-                .context("Failed to remove existing cached service")?;
+            fs::remove_dir_all(&service_dest)?;
         }
 
-        copy_dir_recursive(&service_source, &service_dest)
-            .context("Failed to copy service to cache")?;
+        copy_dir_recursive(&service_source, &service_dest)?;
 
         info!("Service '{}' cached at {:?}", name, service_dest);
         Ok(service_dest)
@@ -71,11 +74,10 @@ impl ServiceFetcher {
     pub fn update_service(&self, name: &str) -> Result<PathBuf> {
         let service_path = self.cache_dir.join(name);
         if !service_path.exists() {
-            anyhow::bail!(
+            return Err(Error::ServiceNotFound(format!(
                 "Service '{}' is not installed. Use 'doubleagent add {}' first.",
-                name,
-                name
-            );
+                name, name
+            )));
         }
 
         // Force re-fetch
@@ -196,7 +198,12 @@ impl ServiceFetcher {
 
         builder
             .clone(&self.repo_url, &self.repo_cache_dir)
-            .context(format!("Failed to clone repository from {}", self.repo_url))?;
+            .map_err(|e| {
+                Error::Other(format!(
+                    "Failed to clone repository from {}: {}",
+                    self.repo_url, e
+                ))
+            })?;
 
         info!("Repository cloned successfully");
         Ok(())
@@ -204,13 +211,14 @@ impl ServiceFetcher {
 
     /// Pull latest changes from the repository
     fn pull_repo(&self) -> Result<()> {
-        let repo =
-            Repository::open(&self.repo_cache_dir).context("Failed to open cached repository")?;
+        let repo = Repository::open(&self.repo_cache_dir).map_err(|e| {
+            Error::Other(format!("Failed to open cached repository: {}", e))
+        })?;
 
         // Fetch from origin
-        let mut remote = repo
-            .find_remote("origin")
-            .context("Failed to find origin remote")?;
+        let mut remote = repo.find_remote("origin").map_err(|e| {
+            Error::Other(format!("Failed to find origin remote: {}", e))
+        })?;
 
         let mut callbacks = RemoteCallbacks::new();
         callbacks.transfer_progress(|progress| {
@@ -223,15 +231,15 @@ impl ServiceFetcher {
 
         remote
             .fetch(&["main"], Some(&mut fetch_options), None)
-            .context("Failed to fetch from remote")?;
+            .map_err(|e| Error::Other(format!("Failed to fetch from remote: {}", e)))?;
 
         // Get the fetch head
         let fetch_head = repo
             .find_reference("FETCH_HEAD")
-            .context("Failed to find FETCH_HEAD")?;
+            .map_err(|e| Error::Other(format!("Failed to find FETCH_HEAD: {}", e)))?;
         let fetch_commit = repo
             .reference_to_annotated_commit(&fetch_head)
-            .context("Failed to get fetch commit")?;
+            .map_err(|e| Error::Other(format!("Failed to get fetch commit: {}", e)))?;
 
         // Fast-forward merge
         let (analysis, _) = repo.merge_analysis(&[&fetch_commit])?;

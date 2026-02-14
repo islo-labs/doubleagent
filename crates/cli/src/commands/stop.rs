@@ -1,7 +1,6 @@
 use super::StopArgs;
-use crate::config::Config;
-use crate::process::ProcessManager;
 use colored::Colorize;
+use doubleagent_core::{Config, ProcessManager};
 
 pub async fn run(args: StopArgs) -> anyhow::Result<()> {
     let config = Config::load()?;

@@ -1,9 +1,7 @@
 use super::ContractArgs;
-use crate::config::Config;
-use crate::mise;
-use crate::service::ServiceRegistry;
 use anyhow::Context;
 use colored::Colorize;
+use doubleagent_core::{mise, Config, ServiceRegistry};
 
 pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
     let config = Config::load()?;

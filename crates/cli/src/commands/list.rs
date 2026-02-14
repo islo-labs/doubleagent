@@ -1,7 +1,6 @@
 use super::ListArgs;
-use crate::config::Config;
-use crate::service::ServiceRegistry;
 use colored::Colorize;
+use doubleagent_core::{Config, ServiceRegistry};
 
 pub async fn run(args: ListArgs) -> anyhow::Result<()> {
     let config = Config::load()?;

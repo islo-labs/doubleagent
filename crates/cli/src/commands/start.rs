@@ -1,8 +1,6 @@
 use super::StartArgs;
-use crate::config::Config;
-use crate::process::ProcessManager;
-use crate::service::{ServiceDefinition, ServiceRegistry};
 use colored::Colorize;
+use doubleagent_core::{Config, ProcessManager, ServiceDefinition, ServiceRegistry};
 use std::path::PathBuf;
 
 pub async fn run(args: StartArgs) -> anyhow::Result<()> {

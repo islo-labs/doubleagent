@@ -1,10 +1,5 @@
 mod commands;
-mod config;
-mod git;
-mod mise;
-mod process;
 mod project_config;
-mod service;
 
 use anyhow::Context;
 use clap::Parser;

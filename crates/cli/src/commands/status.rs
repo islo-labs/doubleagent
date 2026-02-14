@@ -1,6 +1,5 @@
-use crate::config::Config;
-use crate::process::ProcessManager;
 use colored::Colorize;
+use doubleagent_core::{Config, ProcessManager};
 
 pub async fn run() -> anyhow::Result<()> {
     let config = Config::load()?;
@@ -22,7 +21,7 @@ pub async fn run() -> anyhow::Result<()> {
 
     for service_name in &services {
         if let Some(info) = manager.get_info(service_name) {
-            let health = if manager.check_health_sync(service_name).await {
+            let health = if manager.check_health(service_name).await {
                 "healthy".green()
             } else {
                 "unhealthy".red()
