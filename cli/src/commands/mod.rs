@@ -56,8 +56,7 @@ pub struct AddArgs {
 
 #[derive(Parser)]
 pub struct StartArgs {
-    /// Services to start
-    #[arg(required = true)]
+    /// Services to start (ignored when --local is used)
     pub services: Vec<String>,
 
     /// Port for the first service (subsequent services increment)
@@ -67,6 +66,10 @@ pub struct StartArgs {
     /// Run in foreground (don't daemonize)
     #[arg(short, long)]
     pub foreground: bool,
+
+    /// Start a service from a local directory (for development/testing)
+    #[arg(short, long)]
+    pub local: Option<String>,
 }
 
 #[derive(Parser)]
