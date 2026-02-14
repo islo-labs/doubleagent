@@ -114,27 +114,24 @@ This ensures anyone running the service has the correct Python and uv versions.
 Contract tests use the **official SDK** to verify the fake works correctly.
 If the official SDK can parse responses without errors, the fake is compatible.
 
+The CLI starts the service automatically before running tests, setting `DOUBLEAGENT_{SERVICE}_URL` as an environment variable.
+
 ```python
 # services/my-service/contracts/conftest.py
+import os
+import httpx
 import pytest
 from official_sdk import Client
-from doubleagent import DoubleAgent
 
-@pytest.fixture(scope="session")
-def my_service():
-    da = DoubleAgent()
-    service = da.start_sync("my-service", port=18080)
-    yield service
-    da.stop_all()
+SERVICE_URL = os.environ["DOUBLEAGENT_MY_SERVICE_URL"]
 
 @pytest.fixture
-def client(my_service) -> Client:
-    return Client(base_url=my_service.url, token="fake-token")
+def client() -> Client:
+    return Client(base_url=SERVICE_URL, token="fake-token")
 
 @pytest.fixture(autouse=True)
-def reset_fake(my_service):
-    import httpx
-    httpx.post(f"{my_service.url}/_doubleagent/reset")
+def reset_fake():
+    httpx.post(f"{SERVICE_URL}/_doubleagent/reset")
     yield
 
 # services/my-service/contracts/test_items.py
@@ -147,8 +144,8 @@ class TestItems:
 ### Step 5: Validate
 
 ```bash
-cd services/my-service/contracts
-uv run pytest -v
+# Run contract tests (CLI starts/stops the service automatically)
+doubleagent contract my-service
 ```
 
 ## Code Quality

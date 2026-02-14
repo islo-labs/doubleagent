@@ -108,40 +108,24 @@ dependencies = [
 Contract tests use the official SDK to verify the fake works correctly.
 If the official SDK can parse responses without errors, the fake is compatible.
 
+The CLI starts the service automatically before running tests, setting `DOUBLEAGENT_{SERVICE}_URL` as an environment variable.
+
 **services/{service_name}/contracts/conftest.py:**
 ```python
 import os
-import sys
+import httpx
 import pytest
-
-# Add SDK to path
-sys.path.insert(0, str(os.path.join(os.path.dirname(__file__), "..", "..", "..", "sdk", "python")))
-
 from {official_sdk} import Client
-from doubleagent import DoubleAgent
 
-@pytest.fixture(scope="session")
-def doubleagent():
-    da = DoubleAgent()
-    yield da
-    da.stop_all()
-
-@pytest.fixture(scope="session")
-def {service_name}_service(doubleagent):
-    import asyncio
-    loop = asyncio.new_event_loop()
-    service = loop.run_until_complete(doubleagent.start("{service_name}", port=18080))
-    yield service
-    loop.close()
+SERVICE_URL = os.environ["DOUBLEAGENT_{SERVICE_NAME}_URL"]
 
 @pytest.fixture
-def client({service_name}_service) -> Client:
-    return Client(base_url={service_name}_service.url, token="fake-token")
+def client() -> Client:
+    return Client(base_url=SERVICE_URL, token="fake-token")
 
 @pytest.fixture(autouse=True)
-def reset_fake({service_name}_service):
-    import httpx
-    httpx.post(f"{{service_name}_service.url}/_doubleagent/reset")
+def reset_fake():
+    httpx.post(f"{SERVICE_URL}/_doubleagent/reset")
     yield
 ```
 
@@ -165,14 +149,6 @@ dependencies = [
     "pytest>=8.0.0",
     "httpx>=0.27.0",
 ]
-
-[tool.uv.sources]
-doubleagent = { path = "../../../sdk/python", editable = true }
-
-[dependency-groups]
-dev = [
-    "doubleagent",
-]
 ```
 
 ### Step 5: Test
@@ -182,9 +158,8 @@ dev = [
 cd services/{service_name}/server && uv sync
 cd services/{service_name}/contracts && uv sync
 
-# Run contract tests
-cd services/{service_name}/contracts
-uv run pytest -v
+# Run contract tests (CLI starts/stops the service automatically)
+doubleagent contract {service_name}
 ```
 
 ## Requirements

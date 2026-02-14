@@ -35,13 +35,16 @@ pub async fn run(args: StartArgs) -> anyhow::Result<()> {
         match manager.wait_for_health(&service.name, port, 30).await {
             Ok(_) => {
                 println!(" {}", "✓".green());
+                let env_var_name = format!("DOUBLEAGENT_{}_URL", service.name.to_uppercase());
+                let url = format!("http://localhost:{}", port);
                 println!(
                     "{} {} running on {} (PID: {})",
                     "✓".green(),
                     service.name.bold(),
-                    format!("http://localhost:{}", port).cyan(),
+                    url.cyan(),
                     pid
                 );
+                println!("  Export: {}={}", env_var_name.bold(), url);
             }
             Err(e) => {
                 println!(" {}", "✗".red());
@@ -84,13 +87,16 @@ pub async fn run(args: StartArgs) -> anyhow::Result<()> {
         match manager.wait_for_health(service_name, port, 30).await {
             Ok(_) => {
                 println!(" {}", "✓".green());
+                let env_var_name = format!("DOUBLEAGENT_{}_URL", service_name.to_uppercase());
+                let url = format!("http://localhost:{}", port);
                 println!(
                     "{} {} running on {} (PID: {})",
                     "✓".green(),
                     service_name.bold(),
-                    format!("http://localhost:{}", port).cyan(),
+                    url.cyan(),
                     pid
                 );
+                println!("  Export: {}={}", env_var_name.bold(), url);
             }
             Err(e) => {
                 println!(" {}", "✗".red());

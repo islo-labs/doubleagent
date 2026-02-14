@@ -1,7 +1,7 @@
 use super::ContractArgs;
 use anyhow::Context;
 use colored::Colorize;
-use doubleagent_core::{mise, Config, ServiceRegistry};
+use doubleagent_core::{mise, Config, ProcessManager, ServiceRegistry};
 
 pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
     let config = Config::load()?;
@@ -52,15 +52,47 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
         )
     })?;
 
+    // Start the service before running tests
+    let mut manager = ProcessManager::load(&config.state_file)?;
+    let port: u16 = 18080;
+
+    println!("{} Starting {} service...", "▶".blue(), args.service);
+    let pid = manager.start(&service, port).await?;
+
+    print!("  Waiting for health check...");
+    if let Err(e) = manager.wait_for_health(&args.service, port, 30).await {
+        println!(" {}", "✗".red());
+        manager.stop(&args.service).await?;
+        manager.save(&config.state_file)?;
+        return Err(anyhow::anyhow!("Health check failed: {}", e));
+    }
+    println!(" {}", "✓".green());
+
+    let env_var_name = format!("DOUBLEAGENT_{}_URL", args.service.to_uppercase());
+    let service_url = format!("http://localhost:{}", port);
+    println!(
+        "{} {} running on {} (PID: {})",
+        "✓".green(),
+        args.service.bold(),
+        service_url.cyan(),
+        pid
+    );
+    println!();
+
     // Build command, wrapping with mise if .mise.toml exists
     let mut cmd = mise::build_command(&service.path, &contracts_config.command)?;
     cmd.current_dir(&contracts_dir);
 
+    // Pass service URL as environment variable
+    cmd.env(&env_var_name, &service_url);
+
     let command_str = contracts_config.command.join(" ");
     tracing::debug!(
-        "Running command '{}' in directory '{}'",
+        "Running command '{}' in directory '{}' with {}={}",
         command_str,
-        contracts_dir.display()
+        contracts_dir.display(),
+        env_var_name,
+        service_url
     );
 
     let status = cmd.status().with_context(|| {
@@ -74,7 +106,17 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
             contracts_dir.display(),
             service.path.display()
         )
-    })?;
+    });
+
+    // Always stop the service after tests, regardless of outcome
+    println!();
+    println!("{} Stopping {} service...", "▶".blue(), args.service);
+    manager.stop(&args.service).await?;
+    manager.save(&config.state_file)?;
+    println!("{} Service stopped", "✓".green());
+
+    // Now handle the test result
+    let status = status?;
 
     if status.success() {
         println!();
