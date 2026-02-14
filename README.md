@@ -1,8 +1,24 @@
-# DoubleAgent
+<p align="center">
+  <img src="public/assets/doubleagent_logo.png" alt="doubleagent Logo" width="400">
+</p>
 
-**Fake services. Real agents.**
+# doubleagent
 
-Open-source, high-fidelity fakes of popular third-party services (GitHub, Jira, Okta, etc.) that let unattended AI coding agents run at scale without touching real APIs.
+**Test against real APIs without the real APIs.**
+
+High-fidelity fakes of third-party services for AI agent development. Run dozens of agents in parallel, iterate fast, and never worry about rate limits, state cleanup, or API costs.
+
+## Why?
+
+AI agents iterate fast. Real APIs can't keep up:
+
+- **Rate limits.** An agent debugging a task might hit the same endpoint 50 times in an hour. GitHub gives you 5,000 requests/hour. Run 10 agents? You're done in minutes.
+- **State collisions.** Parallel agents create repos, post messages, fire webhooks  -  all stomping on each other's state with no isolation.
+- **No reset.** Every run leaves garbage behind. You can't un-send a Slack message or un-create a GitHub repo without cleanup scripts.
+- **Cost.** Stripe, Twilio, Okta  -  every API call costs money. Multiply by dozens of agents and hundreds of iterations.
+- **Slow feedback.** Real calls take 200-500ms. Agents need millisecond responses to iterate quickly.
+
+DoubleAgent gives you **fakes that behave like the real thing**  -  isolated per agent, instantly resettable, unlimited requests.
 
 ## Quick Start
 
@@ -10,78 +26,50 @@ Open-source, high-fidelity fakes of popular third-party services (GitHub, Jira, 
 # Install
 curl -sSL https://doubleagent.dev/install.sh | sh
 
-# Start services
-doubleagent start github jira
+# Start a service
+doubleagent start github
 
-# Your agents can now use:
-# - GitHub API at http://localhost:8080
-# - Jira API at http://localhost:8081
+# Your code hits localhost instead of the real API
+# Official SDKs just work
 ```
 
-## Why DoubleAgent?
-
-AI coding agents are going from supervised tools to unattended workers running at scale. At that scale, real services don't work:
-
-- You can't create a thousand test accounts
-- Nobody will let you hammer their API at that volume
-- You can't reset state between runs
-- Every API call costs money
-
-DoubleAgent provides **high-fidelity fakes** — not mocks or stubs — that behave like real services.
-
-## Features
-
-- **Fakes, not mocks** — Real API behavior, not hard-coded responses
-- **Contract-tested** — Every fake passes tests against the real API
-- **Official SDK compatible** — Use PyGithub, slack_sdk, etc. directly
-- **Built by agents, for agents** — Designed for AI agent workflows
-
 ## Usage
+
 
 ### CLI
 
 ```bash
-# Start services
-doubleagent start github              # Start GitHub fake on default port
+doubleagent start github              # Start on default port
 doubleagent start github --port 9000  # Custom port
-doubleagent start github jira slack   # Multiple services
+doubleagent start github slack       # Multiple services
 
-# Manage services
 doubleagent status                    # Show running services
-doubleagent stop github               # Stop a service
-doubleagent stop                      # Stop all services
-
-# State management
-doubleagent reset github              # Clear GitHub state
-doubleagent seed github ./data.yaml   # Seed with test data
-
-# Contract testing
-doubleagent contract github --target fake   # Test fake
-doubleagent contract github --target real   # Test real API
-doubleagent contract github --target both   # Validate fidelity
+doubleagent stop                      # Stop all
+doubleagent reset github              # Clear state
+doubleagent seed github ./data.yaml   # Load fixtures
 ```
 
 ### Python SDK
 
 ```python
 from doubleagent import DoubleAgent
+import github
 
-# Start services programmatically
 async with DoubleAgent() as da:
-    github = await da.start("github")
+    svc = await da.start("github")
     
     # Use official PyGithub SDK!
     from github import Github
-    client = Github(base_url=github.url, login_or_token="fake-token")
-    
+    client = Github(base_url=svc.url, login_or_token="fake-token")
+
     repo = client.get_user().create_repo("test-repo")
     issue = repo.create_issue(title="Test issue")
-    
+
     # Reset between tests
-    await github.reset()
+    await svc.reset()
 ```
 
-### pytest Integration
+### pytest
 
 ```python
 import pytest
@@ -98,6 +86,16 @@ def test_create_issue(github):
     # ... test code using official SDK
 ```
 
+## Fakes, Not Mocks
+
+**Mocks** return hard-coded responses. Call `create_customer()` and get `{"id": "cus_123"}` every time.
+
+**Fakes** implement real behavior. Create a customer, it gets stored. Retrieve it later, it's there. Delete it, it's gone.
+
+- **Contract-tested** — Every fake passes tests against the real API
+- **Official SDK compatible** — Use PyGithub, stripe-python, etc. directly  
+- **Built by agents, for agents** — Designed for AI agent workflows
+
 ## Available Services
 
 | Service | Status | Official SDK |
@@ -107,17 +105,14 @@ def test_create_issue(github):
 | Slack | 🚧 Coming soon | slack_sdk |
 | Okta | 🚧 Coming soon | okta |
 | Auth0 | 🚧 Coming soon | auth0-python |
+| Stripe | 🚧 Coming soon | stripe |
 
 ## Contributing
 
-DoubleAgent is designed to be contributed to by both humans and AI agents.
-
-### Adding a New Service
-
-1. Create service directory: `services/<name>/`
-2. Implement HTTP server with required `/_doubleagent` endpoints
-3. Write contract tests using official SDK
-4. Validate against real API
+1. Create `services/<name>/`
+2. Implement the fake with `/_doubleagent/health`, `reset`, and `seed` endpoints
+3. Write contract tests with the official SDK
+4. Validate against the real API
 
 See [docs/contributing.md](docs/contributing.md) for details.
 
