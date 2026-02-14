@@ -2,6 +2,7 @@ use super::ContractArgs;
 use crate::config::Config;
 use crate::mise;
 use crate::service::ServiceRegistry;
+use anyhow::Context;
 use colored::Colorize;
 
 pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
@@ -45,13 +46,37 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
     println!();
 
     // Install mise tools if .mise.toml exists
-    mise::install_tools(&service.path)?;
+    mise::install_tools(&service.path).with_context(|| {
+        format!(
+            "Failed to install mise tools for '{}' at {}",
+            args.service,
+            service.path.display()
+        )
+    })?;
 
     // Build command, wrapping with mise if .mise.toml exists
     let mut cmd = mise::build_command(&service.path, &contracts_config.command)?;
     cmd.current_dir(&contracts_dir);
 
-    let status = cmd.status()?;
+    let command_str = contracts_config.command.join(" ");
+    tracing::debug!(
+        "Running command '{}' in directory '{}'",
+        command_str,
+        contracts_dir.display()
+    );
+
+    let status = cmd.status().with_context(|| {
+        format!(
+            "Failed to execute contract tests for '{}'.\n\
+             Command: {}\n\
+             Directory: {}\n\
+             Service path: {}",
+            args.service,
+            command_str,
+            contracts_dir.display(),
+            service.path.display()
+        )
+    })?;
 
     if status.success() {
         println!();
