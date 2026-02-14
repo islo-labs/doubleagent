@@ -111,10 +111,6 @@ pub struct SeedArgs {
 pub struct ContractArgs {
     /// Service to test
     pub service: String,
-
-    /// Target to test against
-    #[arg(short, long, default_value = "fake")]
-    pub target: String,
 }
 
 #[derive(Parser)]

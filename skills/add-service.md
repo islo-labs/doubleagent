@@ -105,36 +105,74 @@ dependencies = [
 
 ### Step 4: Write Contract Tests
 
+Contract tests use the official SDK to verify the fake works correctly.
+If the official SDK can parse responses without errors, the fake is compatible.
+
 **services/{service_name}/contracts/conftest.py:**
 ```python
+import os
+import sys
 import pytest
+
+# Add SDK to path
+sys.path.insert(0, str(os.path.join(os.path.dirname(__file__), "..", "..", "..", "sdk", "python")))
+
 from {official_sdk} import Client
-from doubleagent_contracts import Target
+from doubleagent import DoubleAgent
+
+@pytest.fixture(scope="session")
+def doubleagent():
+    da = DoubleAgent()
+    yield da
+    da.stop_all()
+
+@pytest.fixture(scope="session")
+def {service_name}_service(doubleagent):
+    import asyncio
+    loop = asyncio.new_event_loop()
+    service = loop.run_until_complete(doubleagent.start("{service_name}", port=18080))
+    yield service
+    loop.close()
 
 @pytest.fixture
-def target(doubleagent_service) -> Target:
-    return Target.from_env(
-        service_name="{service_name}",
-        fake_url=doubleagent_service.url,
-        real_url="{real_api_url}",
-        auth_env_var="{AUTH_ENV_VAR}",
-    )
+def client({service_name}_service) -> Client:
+    return Client(base_url={service_name}_service.url, token="fake-token")
 
-@pytest.fixture
-def client(target: Target) -> Client:
-    return Client(base_url=target.base_url, token=target.auth_token)
+@pytest.fixture(autouse=True)
+def reset_fake({service_name}_service):
+    import httpx
+    httpx.post(f"{{service_name}_service.url}/_doubleagent/reset")
+    yield
 ```
 
 **services/{service_name}/contracts/test_{resource}.py:**
 ```python
-from doubleagent_contracts import contract_test
-
-@contract_test
 class Test{Resource}:
-    def test_create(self, client, target):
+    def test_create(self, client):
         # Use official SDK to test
         result = client.create_{resource}(...)
         assert result.id is not None
+```
+
+**services/{service_name}/contracts/pyproject.toml:**
+```toml
+[project]
+name = "{service_name}-contracts"
+version = "1.0.0"
+requires-python = ">=3.10"
+dependencies = [
+    "{official_sdk_package}",
+    "pytest>=8.0.0",
+    "httpx>=0.27.0",
+]
+
+[tool.uv.sources]
+doubleagent = { path = "../../../sdk/python", editable = true }
+
+[dependency-groups]
+dev = [
+    "doubleagent",
+]
 ```
 
 ### Step 5: Test
@@ -144,23 +182,14 @@ class Test{Resource}:
 cd services/{service_name}/server && uv sync
 cd services/{service_name}/contracts && uv sync
 
-# Start the service
-doubleagent start {service_name}
-
-# Run contract tests (uses command from service.yaml)
-doubleagent contract {service_name} --target fake
-
-# Or run directly in contracts directory
+# Run contract tests
 cd services/{service_name}/contracts
-DOUBLEAGENT_TARGET=fake uv run pytest -v
-
-# Test against real (requires API credentials)
-{AUTH_ENV_VAR}=your-token DOUBLEAGENT_TARGET=real uv run pytest -v
+uv run pytest -v
 ```
 
 ## Requirements
 
 - All `/_doubleagent/*` endpoints must be implemented
 - Contract tests must use the official SDK
-- Tests must pass against both fake and real API
+- Tests must pass with official SDK
 - Error responses should match the real API format

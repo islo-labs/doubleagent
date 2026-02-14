@@ -13,10 +13,8 @@ dependencies = [
 
 [tool.uv.sources]
 doubleagent = { path = "../../../sdk/python", editable = true }
-doubleagent-contracts = { path = "../../../contracts", editable = true }
 
 [dependency-groups]
 dev = [
     "doubleagent",
-    "doubleagent-contracts",
 ]

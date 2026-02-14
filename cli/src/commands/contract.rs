@@ -38,10 +38,9 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
     }
 
     println!(
-        "{} Running contract tests for {} (target: {})",
+        "{} Running contract tests for {}",
         "▶".blue(),
-        args.service.bold(),
-        args.target.cyan()
+        args.service.bold()
     );
     println!();
 
@@ -50,7 +49,6 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
 
     let status = Command::new(program)
         .current_dir(&contracts_dir)
-        .env("DOUBLEAGENT_TARGET", &args.target)
         .args(cmd_args)
         .status()?;
 

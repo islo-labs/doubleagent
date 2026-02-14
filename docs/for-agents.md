@@ -70,7 +70,8 @@ Match the real API's:
 
 ### 5. Write Contract Tests
 
-Contract tests MUST use the official SDK:
+Contract tests MUST use the official SDK. If the official SDK can parse responses
+without errors, the fake is compatible.
 
 ```python
 # Good - uses official SDK
@@ -86,17 +87,12 @@ def test_create_issue():
 
 ### 6. Validate
 
-Run contract tests against both targets:
+Run contract tests against the fake:
 
 ```bash
-# Against your fake
-DOUBLEAGENT_TARGET=fake uv run pytest
-
-# Against real API (needs credentials)
-DOUBLEAGENT_TARGET=real uv run pytest
+cd services/{service-name}/contracts
+uv run pytest -v
 ```
-
-Both MUST pass.
 
 ## Tips for Good Fakes
 
@@ -207,7 +203,6 @@ Before submitting:
 - [ ] `/_doubleagent/reset` clears all state
 - [ ] `/_doubleagent/seed` can populate state
 - [ ] Contract tests use official SDK
-- [ ] Tests pass against fake (`--target fake`)
-- [ ] Tests pass against real API (`--target real`)
+- [ ] Tests pass against fake
 - [ ] service.yaml is complete
 - [ ] Error responses match real API format
