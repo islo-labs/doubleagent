@@ -16,7 +16,7 @@ tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -25,7 +25,7 @@ which = "7"
 dirs = "6"
 libc = "0.2"
 anyhow = "1"
-git2 = "0.19"
+git2 = { version = "0.19", default-features = false, features = ["vendored-libgit2", "vendored-openssl", "https"] }
 
 [dev-dependencies]
 tempfile = "3"
