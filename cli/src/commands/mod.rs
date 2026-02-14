@@ -1,11 +1,13 @@
-pub mod start;
-pub mod stop;
-pub mod status;
+pub mod add;
+pub mod contract;
+pub mod list;
+pub mod new;
 pub mod reset;
 pub mod seed;
-pub mod list;
-pub mod contract;
-pub mod new;
+pub mod start;
+pub mod status;
+pub mod stop;
+pub mod update;
 
 use clap::{Parser, Subcommand};
 
@@ -19,29 +21,41 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Add (install) a service from the remote repository
+    Add(AddArgs),
+
     /// Start one or more services
     Start(StartArgs),
-    
+
     /// Stop running services
     Stop(StopArgs),
-    
+
     /// Show status of running services
     Status,
-    
+
     /// Reset service state
     Reset(ResetArgs),
-    
+
     /// Seed service with data
     Seed(SeedArgs),
-    
+
     /// List available services
-    List,
-    
+    List(ListArgs),
+
     /// Run contract tests
     Contract(ContractArgs),
-    
+
     /// Create a new service from template
     New(NewArgs),
+
+    /// Update services to latest version
+    Update(UpdateArgs),
+}
+
+#[derive(Parser)]
+pub struct AddArgs {
+    /// Services to add (install). If not specified, reads from doubleagent.yaml
+    pub services: Vec<String>,
 }
 
 #[derive(Parser)]
@@ -49,14 +63,27 @@ pub struct StartArgs {
     /// Services to start
     #[arg(required = true)]
     pub services: Vec<String>,
-    
+
     /// Port for the first service (subsequent services increment)
     #[arg(short, long)]
     pub port: Option<u16>,
-    
+
     /// Run in foreground (don't daemonize)
     #[arg(short, long)]
     pub foreground: bool,
+}
+
+#[derive(Parser)]
+pub struct ListArgs {
+    /// Show services available in the remote repository
+    #[arg(short, long)]
+    pub remote: bool,
+}
+
+#[derive(Parser)]
+pub struct UpdateArgs {
+    /// Services to update (empty = all installed)
+    pub services: Vec<String>,
 }
 
 #[derive(Parser)]
@@ -75,7 +102,7 @@ pub struct ResetArgs {
 pub struct SeedArgs {
     /// Service to seed
     pub service: String,
-    
+
     /// Path to seed data file (YAML or JSON)
     pub file: String,
 }
@@ -84,7 +111,7 @@ pub struct SeedArgs {
 pub struct ContractArgs {
     /// Service to test
     pub service: String,
-    
+
     /// Target to test against
     #[arg(short, long, default_value = "fake")]
     pub target: String,
@@ -94,7 +121,7 @@ pub struct ContractArgs {
 pub struct NewArgs {
     /// Name for the new service
     pub name: String,
-    
+
     /// Template to use
     #[arg(short, long, default_value = "python-fastapi")]
     pub template: String,

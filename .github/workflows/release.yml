@@ -1,0 +1,98 @@
+name: Build Release
+
+# Trigger release build when semantic-release creates a tag
+on:
+  push:
+    tags:
+      - "v*" # Only trigger on tags starting with 'v'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build release for (e.g., v1.0.0)"
+        required: true
+        type: string
+  workflow_run:
+    workflows: ["Tag"]
+    types:
+      - completed
+
+permissions:
+  contents: write # Required to create GitHub releases
+
+env:
+  CARGO_TERM_COLOR: always
+  BINARY_NAME: doubleagent
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for tag detection
+
+      - name: Get latest tag
+        id: tag
+        shell: bash
+        run: |
+          git fetch --tags
+          TAG=$(git describe --tags --abbrev=0)
+          echo "TAG=${TAG}" >> $GITHUB_OUTPUT
+          echo "VERSION=${TAG#v}" >> $GITHUB_OUTPUT
+          git checkout "${TAG}"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli -> target
+
+      - name: Build release binary
+        working-directory: cli
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package binary (Unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          mkdir -p release
+          cp cli/target/${{ matrix.target }}/release/${{ env.BINARY_NAME }} release/
+          cd release
+          tar -czvf ${{ env.BINARY_NAME }}-${{ steps.tag.outputs.VERSION }}-${{ matrix.target }}.${{ matrix.archive }} ${{ env.BINARY_NAME }}
+
+      - name: Package binary (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release
+          Copy-Item "cli/target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}.exe" -Destination release/
+          Compress-Archive -Path "release/${{ env.BINARY_NAME }}.exe" -DestinationPath "release/${{ env.BINARY_NAME }}-${{ steps.tag.outputs.VERSION }}-${{ matrix.target }}.${{ matrix.archive }}"
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.TAG }}
+          files: |
+            release/${{ env.BINARY_NAME }}-${{ steps.tag.outputs.VERSION }}-${{ matrix.target }}.${{ matrix.archive }}
