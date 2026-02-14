@@ -2,235 +2,135 @@
 
 **Fake services. Real agents.**
 
-You're running AI coding agents at scale — hundreds of them creating PRs, filing
-issues, calling APIs concurrently. You can't point them at real GitHub, real Jira,
-or real Okta because:
+Open-source, high-fidelity fakes of popular third-party services (GitHub, Jira, Okta, etc.) that let unattended AI coding agents run at scale without touching real APIs.
+
+## Quick Start
+
+```bash
+# Install
+curl -sSL https://doubleagent.dev/install.sh | sh
+
+# Start services
+doubleagent start github jira
+
+# Your agents can now use:
+# - GitHub API at http://localhost:8080
+# - Jira API at http://localhost:8081
+```
+
+## Why DoubleAgent?
+
+AI coding agents are going from supervised tools to unattended workers running at scale. At that scale, real services don't work:
 
 - You can't create a thousand test accounts
 - Nobody will let you hammer their API at that volume
 - You can't reset state between runs
 - Every API call costs money
 
-DoubleAgent gives you **high-fidelity, in-memory fakes** of popular services that
-your agents can hit instead. One config file, one command, and your agents have a
-full simulated world to run wild in.
+DoubleAgent provides **high-fidelity fakes** — not mocks or stubs — that behave like real services.
 
-## What you get
+## Features
 
-| Service | Port | API coverage |
-|---------|------|--------------|
-| **GitHub** | configurable | Repos, Issues, Pull Requests |
-| **Jira** | configurable | Projects, Issues, Search |
-| More coming | | Okta, Slack, ... |
+- **Fakes, not mocks** — Real API behavior, not hard-coded responses
+- **Contract-tested** — Every fake passes tests against the real API
+- **Official SDK compatible** — Use PyGithub, slack_sdk, etc. directly
+- **Built by agents, for agents** — Designed for AI agent workflows
 
-Every fake:
+## Usage
 
-- **Behaves like the real thing.** Create a repo, open an issue against it, list
-  issues back — the state is consistent. Not hard-coded stubs that break the
-  moment your agent does something unexpected.
-- **Resets in one call.** `POST /_/reset` wipes all state so each agent run
-  starts clean.
-- **Runs in-memory.** No database, no Docker dependencies. Starts in milliseconds.
-
-## Quick start
-
-**Prerequisites:** Go 1.23+
-
-**1. Clone and build**
+### CLI
 
 ```bash
-git clone https://github.com/islo-labs/double-agent.git
-cd double-agent
-go build -o double ./cmd/double
+# Start services
+doubleagent start github              # Start GitHub fake on default port
+doubleagent start github --port 9000  # Custom port
+doubleagent start github jira slack   # Multiple services
+
+# Manage services
+doubleagent status                    # Show running services
+doubleagent stop github               # Stop a service
+doubleagent stop                      # Stop all services
+
+# State management
+doubleagent reset github              # Clear GitHub state
+doubleagent seed github ./data.yaml   # Seed with test data
+
+# Contract testing
+doubleagent contract github --target fake   # Test fake
+doubleagent contract github --target real   # Test real API
+doubleagent contract github --target both   # Validate fidelity
 ```
 
-**2. Configure your services** in `double.hcl`:
+### Python SDK
 
-```hcl
-service "github" "primary" {
-  port = 8081
-  env = {
-    DEFAULT_ORG = "acme"
-  }
-}
+```python
+from doubleagent import DoubleAgent
 
-service "jira" "main" {
-  port = 9090
-  env = {
-    PROJECT_KEY = "AGENT"
-  }
-}
+# Start services programmatically
+async with DoubleAgent() as da:
+    github = await da.start("github")
+    
+    # Use official PyGithub SDK!
+    from github import Github
+    client = Github(base_url=github.url, login_or_token="fake-token")
+    
+    repo = client.get_user().create_repo("test-repo")
+    issue = repo.create_issue(title="Test issue")
+    
+    # Reset between tests
+    await github.reset()
 ```
 
-**3. Run**
+### pytest Integration
 
-```bash
-./double run
+```python
+import pytest
+from doubleagent.pytest import github_service
+
+@pytest.fixture
+def github():
+    with github_service() as gh:
+        yield gh
+
+def test_create_issue(github):
+    from github import Github
+    client = Github(base_url=github.url, login_or_token="fake")
+    # ... test code using official SDK
 ```
 
-```
-2026/02/12 10:00:00 DoubleAgent starting with 2 service(s)
-2026/02/12 10:00:00 starting github/primary (v1) on :8081
-2026/02/12 10:00:00 starting jira/main (v1) on :9090
-```
+## Available Services
 
-**4. Point your agents at it**
+| Service | Status | Official SDK |
+|---------|--------|--------------|
+| GitHub | ✅ Available | PyGithub, octokit |
+| Jira | 🚧 Coming soon | atlassian-python-api |
+| Slack | 🚧 Coming soon | slack_sdk |
+| Okta | 🚧 Coming soon | okta |
+| Auth0 | 🚧 Coming soon | auth0-python |
 
-```bash
-# Create a repo
-curl -X POST localhost:8081/repos \
-  -d '{"owner":"acme","name":"my-app","private":false}'
+## Contributing
 
-# Open an issue
-curl -X POST localhost:8081/repos/acme/my-app/issues \
-  -d '{"title":"Fix login bug","body":"Login fails on retry"}'
+DoubleAgent is designed to be contributed to by both humans and AI agents.
 
-# List issues
-curl localhost:8081/repos/acme/my-app/issues
+### Adding a New Service
 
-# Reset everything
-curl -X POST localhost:8081/_/reset
-```
+1. Create service directory: `services/<name>/`
+2. Implement HTTP server with required `/_doubleagent` endpoints
+3. Write contract tests using official SDK
+4. Validate against real API
 
-## Available APIs
+See [docs/contributing.md](docs/contributing.md) for details.
 
-### GitHub (built-in)
+### Required Service Interface
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/repos` | Create repository |
-| `GET` | `/repos/{owner}/{repo}` | Get repository |
-| `POST` | `/repos/{owner}/{repo}/issues` | Create issue |
-| `GET` | `/repos/{owner}/{repo}/issues` | List issues |
-| `POST` | `/repos/{owner}/{repo}/pulls` | Create pull request |
-| `GET` | `/repos/{owner}/{repo}/pulls/{number}` | Get pull request |
+Every service must implement these endpoints:
 
-**Config:** `DEFAULT_ORG` — default owner for new repos.
-
-### Jira (built-in)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/rest/api/2/project` | Create project |
-| `GET` | `/rest/api/2/project` | List projects |
-| `GET` | `/rest/api/2/project/{key}` | Get project |
-| `POST` | `/rest/api/2/issue` | Create issue |
-| `GET` | `/rest/api/2/issue/{key}` | Get issue |
-| `GET` | `/rest/api/2/search` | Search issues |
-
-**Config:** `PROJECT_KEY` — default project key (auto-created on startup).
-
-### Reset (all services)
-
-Every service exposes `POST /_/reset` to wipe all in-memory state.
-
-## External plugins (stdio)
-
-Plugins don't have to be compiled into the binary. Any executable that speaks the
-DoubleAgent JSON-line protocol over stdin/stdout can be used as a plugin.
-
-### Using an external plugin
-
-Add a `command` field to your service block:
-
-```hcl
-service "todo" "main" {
-  port    = 8083
-  command = ["go", "run", "./plugins/todo"]
-  env     = {}
-}
-```
-
-The engine spawns the command as a subprocess and proxies HTTP requests to it
-over stdio.
-
-### Writing an external plugin
-
-An external plugin is any executable that reads JSON requests from stdin and
-writes JSON responses to stdout, one per line.
-
-**With the Go SDK** (easiest path — implement `sdk.Plugin` and call `sdk.Serve`):
-
-```go
-package main
-
-import "github.com/islo-labs/double-agent/pkg/sdk"
-
-type MyPlugin struct { /* ... */ }
-
-func (p *MyPlugin) Info() sdk.PluginInfo {
-    return sdk.PluginInfo{Name: "my-service", Version: "v1"}
-}
-func (p *MyPlugin) Configure(env map[string]string) error { return nil }
-func (p *MyPlugin) ServeHTTP(w http.ResponseWriter, r *http.Request) { /* ... */ }
-func (p *MyPlugin) Reset() error { return nil }
-
-func main() {
-    sdk.Serve(&MyPlugin{})
-}
-```
-
-**In any language** — just speak the protocol:
-
-```
-→ stdin:  {"id":1,"method":"info"}
-← stdout: {"id":1,"result":{"name":"my-service","version":"v1"}}
-
-→ stdin:  {"id":2,"method":"configure","params":{"env":{"KEY":"val"}}}
-← stdout: {"id":2,"result":{}}
-
-→ stdin:  {"id":3,"method":"http","params":{"method":"GET","path":"/items","headers":{},"body":""}}
-← stdout: {"id":3,"result":{"status":200,"headers":{"Content-Type":"application/json"},"body":"[]"}}
-
-→ stdin:  {"id":4,"method":"reset"}
-← stdout: {"id":4,"result":{}}
-```
-
-See `plugins/todo/` for a complete working example.
-
-## Configuration reference
-
-```hcl
-service "<type>" "<name>" {
-  port    = 8081                              # required — HTTP port
-  version = "v1"                              # optional — API version
-  command = ["path/to/plugin"]                # optional — external plugin command
-  env = {                                     # optional — key-value config
-    KEY = "value"
-  }
-}
-```
-
-You can run multiple instances of the same service type with different names
-and ports:
-
-```hcl
-service "github" "production" {
-  port = 8081
-  env  = { DEFAULT_ORG = "acme" }
-}
-
-service "github" "staging" {
-  port = 8082
-  env  = { DEFAULT_ORG = "acme-staging" }
-}
-```
-
-## Project structure
-
-```
-cmd/double/          CLI entrypoint
-pkg/sdk/             Plugin interface + stdio protocol
-internal/
-  config/            HCL config parsing
-  engine/            Plugin lifecycle (start, proxy, shutdown)
-  builtin/           Built-in plugin registry
-plugins/
-  github/            GitHub fake (built-in)
-  jira/              Jira fake (built-in)
-  todo/              Todo fake (external stdio plugin example)
-```
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/_doubleagent/health` | GET | Health check |
+| `/_doubleagent/reset` | POST | Clear all state |
+| `/_doubleagent/seed` | POST | Seed state from JSON |
 
 ## License
 
-Apache 2.0
+MIT

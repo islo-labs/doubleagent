@@ -1,0 +1,18 @@
+name: github
+version: "1.0"
+description: GitHub REST API fake
+docs: https://docs.github.com/en/rest
+
+server:
+  command: ["uv", "run", "python", "main.py"]
+  port: 8080
+
+contracts:
+  command: ["uv", "run", "pytest", "-v", "--tb=short"]
+
+env:
+  GITHUB_API_URL: "http://localhost:${port}"
+  GITHUB_TOKEN: "doubleagent-fake-token"
+
+features:
+  webhooks: true

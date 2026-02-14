@@ -1,0 +1,40 @@
+use crate::config::Config;
+use crate::process::ProcessManager;
+use colored::Colorize;
+
+pub async fn run() -> anyhow::Result<()> {
+    let config = Config::load()?;
+    let manager = ProcessManager::load(&config.state_file)?;
+    
+    let services = manager.running_services();
+    
+    if services.is_empty() {
+        println!("No services running");
+        println!("\nUse {} to start services", "doubleagent start <service>".cyan());
+        return Ok(());
+    }
+    
+    println!("{}", "Running services:".bold());
+    println!();
+    
+    for service_name in &services {
+        if let Some(info) = manager.get_info(service_name) {
+            let health = if manager.check_health_sync(service_name).await {
+                "healthy".green()
+            } else {
+                "unhealthy".red()
+            };
+            
+            println!(
+                "  {} {} {} {}",
+                "●".green(),
+                service_name.bold(),
+                format!("http://localhost:{}", info.port).cyan(),
+                format!("[{}]", health)
+            );
+            println!("    PID: {}  Started: {}", info.pid, info.started_at);
+        }
+    }
+    
+    Ok(())
+}
