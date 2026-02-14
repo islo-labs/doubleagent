@@ -44,6 +44,9 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
     );
     println!();
 
+    // Install mise tools if .mise.toml exists
+    mise::install_tools(&service.path)?;
+
     // Build command, wrapping with mise if .mise.toml exists
     let mut cmd = mise::build_command(&service.path, &contracts_config.command)?;
     cmd.current_dir(&contracts_dir);
