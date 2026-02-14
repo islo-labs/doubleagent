@@ -135,12 +135,7 @@ impl ProcessManager {
     /// Wait for a service to become healthy.
     ///
     /// Polls the health endpoint until it returns success or the timeout is reached.
-    pub async fn wait_for_health(
-        &self,
-        name: &str,
-        port: u16,
-        timeout_secs: u64,
-    ) -> Result<()> {
+    pub async fn wait_for_health(&self, name: &str, port: u16, timeout_secs: u64) -> Result<()> {
         let url = format!("http://localhost:{}/_doubleagent/health", port);
         let client = reqwest::Client::new();
         let start = Instant::now();

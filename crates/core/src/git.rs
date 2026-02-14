@@ -211,14 +211,13 @@ impl ServiceFetcher {
 
     /// Pull latest changes from the repository
     fn pull_repo(&self) -> Result<()> {
-        let repo = Repository::open(&self.repo_cache_dir).map_err(|e| {
-            Error::Other(format!("Failed to open cached repository: {}", e))
-        })?;
+        let repo = Repository::open(&self.repo_cache_dir)
+            .map_err(|e| Error::Other(format!("Failed to open cached repository: {}", e)))?;
 
         // Fetch from origin
-        let mut remote = repo.find_remote("origin").map_err(|e| {
-            Error::Other(format!("Failed to find origin remote: {}", e))
-        })?;
+        let mut remote = repo
+            .find_remote("origin")
+            .map_err(|e| Error::Other(format!("Failed to find origin remote: {}", e)))?;
 
         let mut callbacks = RemoteCallbacks::new();
         callbacks.transfer_progress(|progress| {

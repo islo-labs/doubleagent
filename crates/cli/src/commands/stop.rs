@@ -71,10 +71,7 @@ fn update_env_file(manager: &ProcessManager) {
 
     for name in &services {
         if let Some(info) = manager.get_info(name) {
-            let env_name = format!(
-                "DOUBLEAGENT_{}_URL",
-                name.to_uppercase().replace('-', "_")
-            );
+            let env_name = format!("DOUBLEAGENT_{}_URL", name.to_uppercase().replace('-', "_"));
             content.push_str(&format!("{}=http://localhost:{}\n", env_name, info.port));
         }
     }

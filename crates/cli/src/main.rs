@@ -24,7 +24,8 @@ async fn main() {
 /// Execute a command with automatic error context
 macro_rules! run_command {
     ($name:expr, $cmd:expr) => {
-        $cmd.await.with_context(|| format!("Command '{}' failed", $name))
+        $cmd.await
+            .with_context(|| format!("Command '{}' failed", $name))
     };
 }
 

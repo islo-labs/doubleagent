@@ -32,7 +32,12 @@ pub async fn run(args: RunArgs) -> anyhow::Result<()> {
                     name: service_name.clone(),
                     url: format!("http://localhost:{}", info.port),
                 });
-                println!("  {} {} already running on port {}", "✓".green(), service_name, info.port);
+                println!(
+                    "  {} {} already running on port {}",
+                    "✓".green(),
+                    service_name,
+                    info.port
+                );
             }
             continue;
         }
@@ -69,7 +74,10 @@ pub async fn run(args: RunArgs) -> anyhow::Result<()> {
     let env_vars: HashMap<String, String> = started_services
         .iter()
         .map(|s| {
-            let env_name = format!("DOUBLEAGENT_{}_URL", s.name.to_uppercase().replace('-', "_"));
+            let env_name = format!(
+                "DOUBLEAGENT_{}_URL",
+                s.name.to_uppercase().replace('-', "_")
+            );
             (env_name, s.url.clone())
         })
         .collect();
