@@ -56,11 +56,25 @@ rm -rf "$TMPDIR"
 echo "DoubleAgent installed to $INSTALL_DIR/doubleagent"
 echo ""
 
-# Check for mise
+# Check for mise (required for service toolchains)
 if ! command -v mise &> /dev/null; then
-  echo "Note: mise is recommended for toolchain management."
-  echo "Install mise: curl https://mise.run | sh"
   echo ""
+  echo "mise is required for service toolchain management."
+  read -p "Install mise now? [Y/n] " -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+    echo "Installing mise..."
+    curl -fsSL https://mise.run | sh
+    echo ""
+    echo "To activate mise in your shell, add this to your shell config:"
+    echo "  bash: echo 'eval \"\$(mise activate bash)\"' >> ~/.bashrc"
+    echo "  zsh:  echo 'eval \"\$(mise activate zsh)\"' >> ~/.zshrc"
+    echo ""
+  else
+    echo "Skipped mise installation."
+    echo "You can install it later: curl https://mise.run | sh"
+    echo ""
+  fi
 fi
 
 echo "Run 'doubleagent --help' to get started"
