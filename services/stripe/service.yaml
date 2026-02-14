@@ -1,0 +1,18 @@
+name: stripe
+version: "1.0"
+description: Stripe API fake
+docs: https://stripe.com/docs/api
+
+server:
+  command: ["uv", "run", "python", "main.py"]
+  port: 8082
+
+contracts:
+  command: ["uv", "run", "pytest", "-v", "--tb=short"]
+
+env:
+  STRIPE_API_URL: "http://localhost:${port}"
+  STRIPE_API_KEY: "sk_test_doubleagent_fake_key"
+
+features:
+  webhooks: true
