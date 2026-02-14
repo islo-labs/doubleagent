@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -99,5 +102,7 @@ jobs:
           path: ./bin
       - name: Make CLI executable
         run: chmod +x ./bin/doubleagent
+        working-directory: ${{ github.workspace }}
       - name: Run contract tests
         run: ./bin/doubleagent contract ${{ matrix.service }}
+        working-directory: ${{ github.workspace }}

@@ -111,4 +111,3 @@ pub struct ContractArgs {
     /// Service to test
     pub service: String,
 }
-

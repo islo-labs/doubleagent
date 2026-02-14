@@ -108,9 +108,9 @@ pub async fn run(args: StartArgs) -> anyhow::Result<()> {
 
 /// Load a service definition from a local directory
 fn load_local_service(path: &str) -> anyhow::Result<ServiceDefinition> {
-    let service_path = PathBuf::from(path).canonicalize().map_err(|e| {
-        anyhow::anyhow!("Invalid path '{}': {}", path, e)
-    })?;
+    let service_path = PathBuf::from(path)
+        .canonicalize()
+        .map_err(|e| anyhow::anyhow!("Invalid path '{}': {}", path, e))?;
 
     let service_yaml = service_path.join("service.yaml");
     if !service_yaml.exists() {

@@ -172,10 +172,9 @@ mod tests {
     #[test]
     fn test_is_mise_installed_reflects_system_state() {
         // This test verifies that is_mise_installed() correctly detects mise
-        let result = is_mise_installed();
         // The result depends on the actual system state, so we just verify it doesn't panic
         // and returns a boolean
-        assert!(result == true || result == false);
+        let _ = is_mise_installed();
     }
 
     #[test]
