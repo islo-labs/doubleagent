@@ -1,0 +1,29 @@
+name: Tag
+
+# Manually create semantic version tags
+on:
+  workflow_dispatch: # Manual trigger only
+
+permissions:
+  contents: write # Required to create tags
+  pull-requests: write # Required to comment on associated PRs
+  issues: write # Required to comment on associated issues
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx --yes semantic-release

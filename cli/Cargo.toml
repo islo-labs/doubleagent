@@ -25,6 +25,7 @@ which = "7"
 dirs = "6"
 libc = "0.2"
 anyhow = "1"
+git2 = "0.19"
 
 [dev-dependencies]
 tempfile = "3"
