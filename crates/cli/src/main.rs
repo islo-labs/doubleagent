@@ -43,6 +43,7 @@ async fn run() -> anyhow::Result<()> {
             run_command!("contract", commands::contract::run(args))
         }
         commands::Commands::Update(args) => run_command!("update", commands::update::run(args)),
+        commands::Commands::Run(args) => run_command!("run", commands::run::run(args)),
     }
 }
 

@@ -37,7 +37,8 @@ docs: {api_docs_url}
 
 server:
   command: ["uv", "run", "python", "main.py"]
-  port: 8080
+  # Port is managed by the CLI via --port flag or DOUBLEAGENT_PORT env var
+  # Default: 8080, multiple services use sequential ports (8080, 8081, ...)
 
 contracts:
   # Command to run contract tests (language-agnostic)
@@ -46,7 +47,7 @@ contracts:
   # For Go: ["go", "test", "./..."]
 
 env:
-  {SERVICE}_API_URL: "http://localhost:${port}"
+  # The CLI sets PORT and DOUBLEAGENT_{SERVICE}_URL automatically
   {SERVICE}_TOKEN: "doubleagent-fake-token"
 ```
 

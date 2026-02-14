@@ -2,6 +2,7 @@ pub mod add;
 pub mod contract;
 pub mod list;
 pub mod reset;
+pub mod run;
 pub mod seed;
 pub mod start;
 pub mod status;
@@ -46,6 +47,9 @@ pub enum Commands {
 
     /// Update services to latest version
     Update(UpdateArgs),
+
+    /// Run a command with services started and env vars set
+    Run(RunArgs),
 }
 
 #[derive(Parser)]
@@ -110,4 +114,23 @@ pub struct SeedArgs {
 pub struct ContractArgs {
     /// Service to test
     pub service: String,
+}
+
+#[derive(Parser)]
+pub struct RunArgs {
+    /// Services to start before running the command
+    #[arg(short, long, required = true, num_args = 1..)]
+    pub services: Vec<String>,
+
+    /// Base port for services (subsequent services increment)
+    #[arg(short, long)]
+    pub port: Option<u16>,
+
+    /// Keep services running after command exits
+    #[arg(short, long)]
+    pub keep: bool,
+
+    /// Command to run (everything after --)
+    #[arg(last = true, required = true)]
+    pub command: Vec<String>,
 }

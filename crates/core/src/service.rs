@@ -32,8 +32,6 @@ pub struct ServiceDefinition {
 pub struct ServerConfig {
     /// Command to start the server
     pub command: Vec<String>,
-    /// Default port
-    pub port: u16,
     /// Environment variables
     #[serde(default)]
     pub env: HashMap<String, String>,
