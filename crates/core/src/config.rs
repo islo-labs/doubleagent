@@ -6,6 +6,8 @@ use std::path::PathBuf;
 
 /// Environment variable to override the services repository URL
 const REPO_URL_ENV: &str = "DOUBLEAGENT_SERVICES_REPO";
+/// Environment variable to override the branch to fetch services from
+const BRANCH_ENV: &str = "DOUBLEAGENT_BRANCH";
 
 /// Configuration for DoubleAgent operations.
 pub struct Config {
@@ -15,6 +17,8 @@ pub struct Config {
     pub state_file: PathBuf,
     /// URL of the services monorepo
     pub repo_url: String,
+    /// Branch to fetch services from (defaults to "main")
+    pub branch: String,
     /// Path to project config file (doubleagent.yaml) if it exists
     pub project_config_path: Option<PathBuf>,
 }
@@ -38,6 +42,9 @@ impl Config {
         // Get repo URL from environment or use default
         let repo_url = std::env::var(REPO_URL_ENV).unwrap_or_else(|_| DEFAULT_REPO_URL.to_string());
 
+        // Get branch from environment or use default
+        let branch = std::env::var(BRANCH_ENV).unwrap_or_else(|_| "main".to_string());
+
         // Look for project config file
         let project_config_path = Self::find_project_config();
 
@@ -45,6 +52,7 @@ impl Config {
             services_dir,
             state_file: data_dir.join("state.json"),
             repo_url,
+            branch,
             project_config_path,
         })
     }

@@ -9,6 +9,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  DOUBLEAGENT_BRANCH: ${{ github.head_ref || github.ref_name }}
 
 jobs:
   fmt:

@@ -13,7 +13,7 @@ struct StartedService {
 pub async fn run(args: RunArgs) -> anyhow::Result<()> {
     let config = Config::load()?;
     let mut manager = ProcessManager::load(&config.state_file)?;
-    let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url)?;
+    let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url, &config.branch)?;
 
     let base_port = args.port.unwrap_or(8080);
     let mut started_services: Vec<StartedService> = Vec::new();

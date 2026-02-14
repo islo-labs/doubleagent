@@ -85,7 +85,7 @@ pub async fn run(args: StartArgs) -> anyhow::Result<()> {
         ));
     }
 
-    let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url)?;
+    let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url, &config.branch)?;
 
     for (i, service_name) in args.services.iter().enumerate() {
         // Auto-install if not present (fetches from remote)

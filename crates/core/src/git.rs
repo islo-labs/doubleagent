@@ -17,22 +17,28 @@ pub struct ServiceFetcher {
     cache_dir: PathBuf,
     /// Directory where the full repo clone is stored
     repo_cache_dir: PathBuf,
+    /// Branch to fetch from (defaults to "main")
+    branch: String,
 }
 
 impl ServiceFetcher {
     /// Create a new ServiceFetcher
-    pub fn new(repo_url: String, cache_dir: PathBuf) -> Self {
+    pub fn new(repo_url: String, cache_dir: PathBuf, branch: String) -> Self {
         let repo_cache_dir = cache_dir.join(".repo");
         Self {
             repo_url,
             cache_dir,
             repo_cache_dir,
+            branch,
         }
     }
 
     /// Fetch a service from the monorepo and copy it to the cache
     pub fn fetch_service(&self, name: &str) -> Result<PathBuf> {
-        info!("Fetching service '{}' from {}", name, self.repo_url);
+        info!(
+            "Fetching service '{}' from {} (branch: {})",
+            name, self.repo_url, self.branch
+        );
 
         // Ensure cache directory exists
         fs::create_dir_all(&self.cache_dir)?;
@@ -195,13 +201,14 @@ impl ServiceFetcher {
 
         let mut builder = git2::build::RepoBuilder::new();
         builder.fetch_options(fetch_options);
+        builder.branch(&self.branch); // Clone the specified branch
 
         builder
             .clone(&self.repo_url, &self.repo_cache_dir)
             .map_err(|e| {
                 Error::Other(format!(
-                    "Failed to clone repository from {}: {}",
-                    self.repo_url, e
+                    "Failed to clone repository from {} (branch: {}): {}",
+                    self.repo_url, self.branch, e
                 ))
             })?;
 
@@ -229,7 +236,7 @@ impl ServiceFetcher {
         fetch_options.remote_callbacks(callbacks);
 
         remote
-            .fetch(&["main"], Some(&mut fetch_options), None)
+            .fetch(&[&self.branch], Some(&mut fetch_options), None)
             .map_err(|e| Error::Other(format!("Failed to fetch from remote: {}", e)))?;
 
         // Get the fetch head
@@ -244,7 +251,8 @@ impl ServiceFetcher {
         let (analysis, _) = repo.merge_analysis(&[&fetch_commit])?;
 
         if analysis.is_fast_forward() {
-            if let Ok(mut reference) = repo.find_reference("refs/heads/main") {
+            let branch_ref = format!("refs/heads/{}", self.branch);
+            if let Ok(mut reference) = repo.find_reference(&branch_ref) {
                 reference.set_target(fetch_commit.id(), "Fast-forward")?;
             }
             repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
@@ -311,10 +319,12 @@ mod tests {
         let fetcher = ServiceFetcher::new(
             "https://github.com/example/services".to_string(),
             temp_dir.path().to_path_buf(),
+            "main".to_string(),
         );
 
         assert_eq!(fetcher.repo_url, "https://github.com/example/services");
         assert_eq!(fetcher.cache_dir, temp_dir.path());
         assert_eq!(fetcher.repo_cache_dir, temp_dir.path().join(".repo"));
+        assert_eq!(fetcher.branch, "main");
     }
 }

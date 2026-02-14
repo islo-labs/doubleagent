@@ -59,8 +59,12 @@ pub struct ServiceRegistry {
 
 impl ServiceRegistry {
     /// Create a new ServiceRegistry.
-    pub fn new(services_dir: &Path, repo_url: &str) -> Result<Self> {
-        let fetcher = ServiceFetcher::new(repo_url.to_string(), services_dir.to_path_buf());
+    pub fn new(services_dir: &Path, repo_url: &str, branch: &str) -> Result<Self> {
+        let fetcher = ServiceFetcher::new(
+            repo_url.to_string(),
+            services_dir.to_path_buf(),
+            branch.to_string(),
+        );
 
         Ok(Self {
             services_dir: services_dir.to_path_buf(),

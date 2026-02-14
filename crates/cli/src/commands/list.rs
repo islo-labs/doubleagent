@@ -4,7 +4,7 @@ use doubleagent_core::{Config, ServiceRegistry};
 
 pub async fn run(args: ListArgs) -> anyhow::Result<()> {
     let config = Config::load()?;
-    let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url)?;
+    let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url, &config.branch)?;
 
     if args.remote {
         // List services available in remote repository

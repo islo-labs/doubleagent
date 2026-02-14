@@ -5,7 +5,7 @@ use doubleagent_core::{mise, Config, ProcessManager, ServiceRegistry};
 
 pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
     let config = Config::load()?;
-    let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url)?;
+    let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url, &config.branch)?;
 
     // Auto-install if not present
     let service = registry.get_or_install(&args.service, true)?;
