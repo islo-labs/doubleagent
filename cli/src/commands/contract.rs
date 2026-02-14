@@ -1,8 +1,8 @@
 use super::ContractArgs;
 use crate::config::Config;
+use crate::mise;
 use crate::service::ServiceRegistry;
 use colored::Colorize;
-use std::process::Command;
 
 pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
     let config = Config::load()?;
@@ -38,21 +38,20 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
     }
 
     println!(
-        "{} Running contract tests for {} (target: {})",
+        "{} Running contract tests for {}",
         "▶".blue(),
-        args.service.bold(),
-        args.target.cyan()
+        args.service.bold()
     );
     println!();
 
-    // Run the command specified in service.yaml
-    let (program, cmd_args) = contracts_config.command.split_first().unwrap();
+    // Install mise tools if .mise.toml exists
+    mise::install_tools(&service.path)?;
 
-    let status = Command::new(program)
-        .current_dir(&contracts_dir)
-        .env("DOUBLEAGENT_TARGET", &args.target)
-        .args(cmd_args)
-        .status()?;
+    // Build command, wrapping with mise if .mise.toml exists
+    let mut cmd = mise::build_command(&service.path, &contracts_config.command)?;
+    cmd.current_dir(&contracts_dir);
+
+    let status = cmd.status()?;
 
     if status.success() {
         println!();

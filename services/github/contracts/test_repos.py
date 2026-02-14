@@ -1,22 +1,21 @@
 """
 Contract tests for GitHub repository endpoints.
 
-Uses official PyGithub SDK to validate DoubleAgent fake matches real API.
+Uses official PyGithub SDK to verify the fake works correctly.
 """
 
+import uuid
 import pytest
 from github import Github
-from doubleagent_contracts import contract_test, Target
 
 
-@contract_test
 class TestRepositories:
     """Tests for repository CRUD operations."""
     
-    def test_create_repo(self, github_client: Github, target: Target):
+    def test_create_repo(self, github_client: Github):
         """Test creating a repository."""
         user = github_client.get_user()
-        repo_name = f"test-repo-{target.run_id}"
+        repo_name = f"test-repo-{uuid.uuid4().hex[:8]}"
         
         repo = user.create_repo(
             name=repo_name,
@@ -27,15 +26,11 @@ class TestRepositories:
         assert repo.name == repo_name
         assert repo.description == "Test repository"
         assert repo.private == True
-        
-        # Cleanup for real API
-        if target.is_real:
-            repo.delete()
     
-    def test_get_repo(self, github_client: Github, target: Target):
+    def test_get_repo(self, github_client: Github):
         """Test getting a repository by full name."""
         user = github_client.get_user()
-        repo_name = f"test-repo-{target.run_id}"
+        repo_name = f"test-repo-{uuid.uuid4().hex[:8]}"
         
         # Create repo first
         created = user.create_repo(name=repo_name, private=True)
@@ -45,15 +40,11 @@ class TestRepositories:
         
         assert fetched.id == created.id
         assert fetched.name == repo_name
-        
-        # Cleanup
-        if target.is_real:
-            created.delete()
     
-    def test_update_repo(self, github_client: Github, target: Target):
+    def test_update_repo(self, github_client: Github):
         """Test updating repository properties."""
         user = github_client.get_user()
-        repo_name = f"test-repo-{target.run_id}"
+        repo_name = f"test-repo-{uuid.uuid4().hex[:8]}"
         
         repo = user.create_repo(name=repo_name, description="Original")
         
@@ -63,15 +54,11 @@ class TestRepositories:
         # Fetch fresh and verify
         updated = github_client.get_repo(repo.full_name)
         assert updated.description == "Updated description"
-        
-        # Cleanup
-        if target.is_real:
-            repo.delete()
     
-    def test_delete_repo(self, github_client: Github, target: Target):
+    def test_delete_repo(self, github_client: Github):
         """Test deleting a repository."""
         user = github_client.get_user()
-        repo_name = f"test-repo-{target.run_id}"
+        repo_name = f"test-repo-{uuid.uuid4().hex[:8]}"
         
         repo = user.create_repo(name=repo_name)
         full_name = repo.full_name
@@ -80,20 +67,19 @@ class TestRepositories:
         repo.delete()
         
         # Verify deleted (should raise 404)
-        with pytest.raises(Exception):  # GithubException for real, various for fake
+        with pytest.raises(Exception):  # GithubException
             github_client.get_repo(full_name)
     
-    def test_list_user_repos(self, github_client: Github, target: Target):
+    def test_list_user_repos(self, github_client: Github):
         """Test listing repositories for authenticated user."""
         user = github_client.get_user()
+        run_id = uuid.uuid4().hex[:8]
         
         # Create a few repos
-        repo_names = [f"list-test-{i}-{target.run_id}" for i in range(3)]
-        created_repos = []
+        repo_names = [f"list-test-{i}-{run_id}" for i in range(3)]
         
         for name in repo_names:
-            repo = user.create_repo(name=name)
-            created_repos.append(repo)
+            user.create_repo(name=name)
         
         # List repos
         repos = list(user.get_repos())
@@ -102,8 +88,3 @@ class TestRepositories:
         found_names = {r.name for r in repos}
         for name in repo_names:
             assert name in found_names
-        
-        # Cleanup
-        if target.is_real:
-            for repo in created_repos:
-                repo.delete()

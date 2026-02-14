@@ -1,7 +1,6 @@
 pub mod add;
 pub mod contract;
 pub mod list;
-pub mod new;
 pub mod reset;
 pub mod seed;
 pub mod start;
@@ -45,9 +44,6 @@ pub enum Commands {
     /// Run contract tests
     Contract(ContractArgs),
 
-    /// Create a new service from template
-    New(NewArgs),
-
     /// Update services to latest version
     Update(UpdateArgs),
 }
@@ -60,8 +56,7 @@ pub struct AddArgs {
 
 #[derive(Parser)]
 pub struct StartArgs {
-    /// Services to start
-    #[arg(required = true)]
+    /// Services to start (ignored when --local is used)
     pub services: Vec<String>,
 
     /// Port for the first service (subsequent services increment)
@@ -71,6 +66,10 @@ pub struct StartArgs {
     /// Run in foreground (don't daemonize)
     #[arg(short, long)]
     pub foreground: bool,
+
+    /// Start a service from a local directory (for development/testing)
+    #[arg(short, long)]
+    pub local: Option<String>,
 }
 
 #[derive(Parser)]
@@ -111,18 +110,4 @@ pub struct SeedArgs {
 pub struct ContractArgs {
     /// Service to test
     pub service: String,
-
-    /// Target to test against
-    #[arg(short, long, default_value = "fake")]
-    pub target: String,
-}
-
-#[derive(Parser)]
-pub struct NewArgs {
-    /// Name for the new service
-    pub name: String,
-
-    /// Template to use
-    #[arg(short, long, default_value = "python-fastapi")]
-    pub template: String,
 }

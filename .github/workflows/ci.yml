@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -60,3 +63,46 @@ jobs:
           workspaces: cli -> target
       - name: Build
         run: cargo build --release
+      - name: Upload CLI binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: doubleagent-cli
+          path: cli/target/release/doubleagent
+          retention-days: 1
+
+  discover-services:
+    name: Discover Services
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.discover.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find services with service.yaml
+        id: discover
+        run: |
+          services=$(ls -d services/*/service.yaml 2>/dev/null | xargs -I {} dirname {} | xargs -I {} basename {} | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "services=$services" >> $GITHUB_OUTPUT
+        working-directory: ${{ github.workspace }}
+
+  contracts:
+    name: Contract Tests
+    runs-on: ubuntu-latest
+    needs: [build, discover-services]
+    if: ${{ needs.discover-services.outputs.services != '[]' }}
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.discover-services.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - name: Download CLI binary
+        uses: actions/download-artifact@v4
+        with:
+          name: doubleagent-cli
+          path: ./bin
+      - name: Make CLI executable
+        run: chmod +x ./bin/doubleagent
+        working-directory: ${{ github.workspace }}
+      - name: Run contract tests
+        run: ./bin/doubleagent contract ${{ matrix.service }}
+        working-directory: ${{ github.workspace }}

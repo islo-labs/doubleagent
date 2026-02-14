@@ -53,4 +53,13 @@ fi
 rm -rf "$TMPDIR"
 
 echo "DoubleAgent installed to $INSTALL_DIR/doubleagent"
+echo ""
+
+# Check for mise
+if ! command -v mise &> /dev/null; then
+  echo "Note: mise is recommended for toolchain management."
+  echo "Install mise: curl https://mise.run | sh"
+  echo ""
+fi
+
 echo "Run 'doubleagent --help' to get started"

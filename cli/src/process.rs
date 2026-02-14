@@ -1,9 +1,10 @@
+use crate::mise;
 use crate::service::ServiceDefinition;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,11 +72,11 @@ impl ProcessManager {
     }
 
     pub async fn start(&mut self, service: &ServiceDefinition, port: u16) -> anyhow::Result<u32> {
-        let mut cmd = Command::new(&service.server.command[0]);
+        // Install mise tools if .mise.toml exists
+        mise::install_tools(&service.path)?;
 
-        if service.server.command.len() > 1 {
-            cmd.args(&service.server.command[1..]);
-        }
+        // Build command, wrapping with mise if .mise.toml exists
+        let mut cmd = mise::build_command(&service.path, &service.server.command)?;
 
         cmd.current_dir(service.path.join("server"))
             .env("PORT", port.to_string())

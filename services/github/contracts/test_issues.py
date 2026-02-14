@@ -1,31 +1,28 @@
 """
 Contract tests for GitHub issue endpoints.
 
-Uses official PyGithub SDK to validate DoubleAgent fake matches real API.
+Uses official PyGithub SDK to verify the fake works correctly.
 """
 
+import uuid
 import pytest
 from github import Github
-from doubleagent_contracts import contract_test, Target
 
 
-@contract_test
 class TestIssues:
     """Tests for issue CRUD operations."""
     
     @pytest.fixture(autouse=True)
-    def setup_repo(self, github_client: Github, target: Target):
+    def setup_repo(self, github_client: Github):
         """Create a test repository for issue tests."""
         user = github_client.get_user()
         self.repo = user.create_repo(
-            name=f"issue-test-{target.run_id}",
+            name=f"issue-test-{uuid.uuid4().hex[:8]}",
             auto_init=True,  # Need at least one commit for issues
         )
         yield
-        if target.is_real:
-            self.repo.delete()
     
-    def test_create_issue(self, github_client: Github, target: Target):
+    def test_create_issue(self, github_client: Github):
         """Test creating an issue."""
         issue = self.repo.create_issue(
             title="Test Issue",
@@ -37,7 +34,7 @@ class TestIssues:
         assert issue.state == "open"
         assert issue.number >= 1
     
-    def test_get_issue(self, github_client: Github, target: Target):
+    def test_get_issue(self, github_client: Github):
         """Test getting an issue by number."""
         created = self.repo.create_issue(title="Get Test")
         
@@ -46,7 +43,7 @@ class TestIssues:
         assert fetched.id == created.id
         assert fetched.title == "Get Test"
     
-    def test_update_issue(self, github_client: Github, target: Target):
+    def test_update_issue(self, github_client: Github):
         """Test updating an issue."""
         issue = self.repo.create_issue(title="Original Title")
         
@@ -60,7 +57,7 @@ class TestIssues:
         assert updated.title == "Updated Title"
         assert updated.body == "Updated body"
     
-    def test_close_issue(self, github_client: Github, target: Target):
+    def test_close_issue(self, github_client: Github):
         """Test closing an issue."""
         issue = self.repo.create_issue(title="To Close")
         assert issue.state == "open"
@@ -71,7 +68,7 @@ class TestIssues:
         closed = self.repo.get_issue(issue.number)
         assert closed.state == "closed"
     
-    def test_reopen_issue(self, github_client: Github, target: Target):
+    def test_reopen_issue(self, github_client: Github):
         """Test reopening a closed issue."""
         issue = self.repo.create_issue(title="To Reopen")
         issue.edit(state="closed")
@@ -82,7 +79,7 @@ class TestIssues:
         reopened = self.repo.get_issue(issue.number)
         assert reopened.state == "open"
     
-    def test_list_issues_filters_by_state(self, github_client: Github, target: Target):
+    def test_list_issues_filters_by_state(self, github_client: Github):
         """Test listing issues with state filter."""
         # Create open and closed issues
         open_issue = self.repo.create_issue(title="Open Issue")

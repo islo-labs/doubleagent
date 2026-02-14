@@ -2,6 +2,26 @@
 
 DoubleAgent is designed to be contributed to by both humans and AI agents.
 
+## Prerequisites
+
+### Install mise (Toolchain Manager)
+
+DoubleAgent uses [mise](https://mise.jdx.dev) for toolchain management. Each service declares its required tools in a `.mise.toml` file, and the CLI automatically uses mise when running commands.
+
+```bash
+# Install mise
+curl https://mise.run | sh
+
+# Add to your shell (bash/zsh)
+echo 'eval "$(mise activate bash)"' >> ~/.bashrc
+# or for zsh:
+echo 'eval "$(mise activate zsh)"' >> ~/.zshrc
+```
+
+When you run `doubleagent start` or `doubleagent contract`, the CLI will automatically:
+1. Detect if the service has a `.mise.toml` file
+2. Wrap commands with `mise exec --` to ensure correct tool versions
+
 ## Adding a New Service
 
 ### Step 1: Create Service Directory
@@ -57,7 +77,9 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=port)
 ```
 
-### Step 3: Create service.yaml
+### Step 3: Create service.yaml and .mise.toml
+
+**service.yaml** - Service configuration:
 
 ```yaml
 name: my-service
@@ -70,39 +92,54 @@ server:
   port: 8080
 
 contracts:
-  sdk:
-    package: official-sdk-package
-  real_api:
-    base_url: https://api.example.com
-    auth:
-      type: bearer
-      env_var: API_TOKEN
+  command: ["uv", "run", "pytest", "-v", "--tb=short"]
 
 env:
   API_URL: "http://localhost:${port}"
   API_TOKEN: "doubleagent-fake-token"
 ```
 
+**.mise.toml** - Toolchain requirements (in service root):
+
+```toml
+[tools]
+python = "3.11"
+uv = "latest"
+```
+
+This ensures anyone running the service has the correct Python and uv versions.
+
 ### Step 4: Write Contract Tests
 
-Contract tests use the **official SDK** to verify the fake matches the real API.
+Contract tests use the **official SDK** to verify the fake works correctly.
+If the official SDK can parse responses without errors, the fake is compatible.
 
 ```python
 # services/my-service/contracts/conftest.py
 import pytest
 from official_sdk import Client
-from doubleagent_contracts import Target
+from doubleagent import DoubleAgent
+
+@pytest.fixture(scope="session")
+def my_service():
+    da = DoubleAgent()
+    service = da.start_sync("my-service", port=18080)
+    yield service
+    da.stop_all()
 
 @pytest.fixture
-def client(target: Target) -> Client:
-    return Client(base_url=target.base_url, token=target.auth_token)
+def client(my_service) -> Client:
+    return Client(base_url=my_service.url, token="fake-token")
+
+@pytest.fixture(autouse=True)
+def reset_fake(my_service):
+    import httpx
+    httpx.post(f"{my_service.url}/_doubleagent/reset")
+    yield
 
 # services/my-service/contracts/test_items.py
-from doubleagent_contracts import contract_test
-
-@contract_test
 class TestItems:
-    def test_create_item(self, client, target):
+    def test_create_item(self, client):
         item = client.create_item(name="test")
         assert item.name == "test"
 ```
@@ -110,14 +147,8 @@ class TestItems:
 ### Step 5: Validate
 
 ```bash
-# Test against fake
-doubleagent contract my-service --target fake
-
-# Test against real API (requires API token)
-doubleagent contract my-service --target real
-
-# Both must pass!
-doubleagent contract my-service --target both
+cd services/my-service/contracts
+uv run pytest -v
 ```
 
 ## Code Quality
@@ -140,7 +171,7 @@ doubleagent contract my-service --target both
 Good DoubleAgent services:
 
 1. **High fidelity** - Match real API behavior, not just structure
-2. **Contract tested** - Tests pass against both real and fake
+2. **Contract tested** - Tests pass with official SDK
 3. **Official SDK compatible** - Works with the vendor's SDK
 4. **Well documented** - Clear service.yaml and README
 5. **Webhook support** - If the real API has webhooks, implement them
