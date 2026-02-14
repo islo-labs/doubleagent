@@ -1,6 +1,7 @@
 mod commands;
 mod config;
 mod git;
+mod mise;
 mod process;
 mod project_config;
 mod service;
@@ -28,7 +29,6 @@ async fn main() -> anyhow::Result<()> {
         commands::Commands::Seed(args) => commands::seed::run(args).await,
         commands::Commands::List(args) => commands::list::run(args).await,
         commands::Commands::Contract(args) => commands::contract::run(args).await,
-        commands::Commands::New(args) => commands::new::run(args).await,
         commands::Commands::Update(args) => commands::update::run(args).await,
     }
 }

@@ -7,7 +7,23 @@ This guide helps AI coding agents contribute new services to DoubleAgent.
 DoubleAgent provides fake SaaS APIs for testing. Your task is to implement
 a fake that matches the real API closely enough that official SDKs work.
 
+## Toolchain Management
+
+DoubleAgent uses [mise](https://mise.jdx.dev) for toolchain management. Each service has a `.mise.toml` file declaring required tools (Python, uv, Node, etc.).
+
+**The CLI automatically handles this** - when you run `doubleagent start` or `doubleagent contract`, it detects `.mise.toml` and wraps commands with `mise exec --`.
+
+If mise is not installed, you'll see:
+```
+mise not found. This service requires mise for toolchain management.
+
+Install mise:
+curl https://mise.run | sh
+```
+
 ## Adding a New Service
+
+> **Reference Implementation:** See `services/github/` for a complete working example.
 
 ### 1. Gather Information
 
@@ -21,6 +37,7 @@ Before implementing, collect:
 
 ```
 services/{service-name}/
+├── .mise.toml          # Toolchain requirements (python, uv, node, etc.)
 ├── service.yaml        # Service definition
 ├── server/
 │   ├── main.py         # HTTP server (FastAPI recommended)
@@ -31,6 +48,14 @@ services/{service-name}/
 │   └── pyproject.toml
 └── fixtures/
     └── sample.yaml     # Example seed data
+```
+
+**.mise.toml** declares toolchain requirements:
+
+```toml
+[tools]
+python = "3.11"
+uv = "latest"
 ```
 
 ### 3. Implement Required Endpoints
@@ -199,6 +224,7 @@ async def get_token():
 
 Before submitting:
 
+- [ ] `.mise.toml` declares toolchain requirements
 - [ ] `/_doubleagent/health` returns `{"status": "healthy"}`
 - [ ] `/_doubleagent/reset` clears all state
 - [ ] `/_doubleagent/seed` can populate state

@@ -2,6 +2,26 @@
 
 DoubleAgent is designed to be contributed to by both humans and AI agents.
 
+## Prerequisites
+
+### Install mise (Toolchain Manager)
+
+DoubleAgent uses [mise](https://mise.jdx.dev) for toolchain management. Each service declares its required tools in a `.mise.toml` file, and the CLI automatically uses mise when running commands.
+
+```bash
+# Install mise
+curl https://mise.run | sh
+
+# Add to your shell (bash/zsh)
+echo 'eval "$(mise activate bash)"' >> ~/.bashrc
+# or for zsh:
+echo 'eval "$(mise activate zsh)"' >> ~/.zshrc
+```
+
+When you run `doubleagent start` or `doubleagent contract`, the CLI will automatically:
+1. Detect if the service has a `.mise.toml` file
+2. Wrap commands with `mise exec --` to ensure correct tool versions
+
 ## Adding a New Service
 
 ### Step 1: Create Service Directory
@@ -57,7 +77,9 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=port)
 ```
 
-### Step 3: Create service.yaml
+### Step 3: Create service.yaml and .mise.toml
+
+**service.yaml** - Service configuration:
 
 ```yaml
 name: my-service
@@ -76,6 +98,16 @@ env:
   API_URL: "http://localhost:${port}"
   API_TOKEN: "doubleagent-fake-token"
 ```
+
+**.mise.toml** - Toolchain requirements (in service root):
+
+```toml
+[tools]
+python = "3.11"
+uv = "latest"
+```
+
+This ensures anyone running the service has the correct Python and uv versions.
 
 ### Step 4: Write Contract Tests
 

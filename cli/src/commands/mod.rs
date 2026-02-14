@@ -1,7 +1,6 @@
 pub mod add;
 pub mod contract;
 pub mod list;
-pub mod new;
 pub mod reset;
 pub mod seed;
 pub mod start;
@@ -44,9 +43,6 @@ pub enum Commands {
 
     /// Run contract tests
     Contract(ContractArgs),
-
-    /// Create a new service from template
-    New(NewArgs),
 
     /// Update services to latest version
     Update(UpdateArgs),
@@ -113,12 +109,3 @@ pub struct ContractArgs {
     pub service: String,
 }
 
-#[derive(Parser)]
-pub struct NewArgs {
-    /// Name for the new service
-    pub name: String,
-
-    /// Template to use
-    #[arg(short, long, default_value = "python-fastapi")]
-    pub template: String,
-}

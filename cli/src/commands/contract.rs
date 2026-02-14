@@ -1,8 +1,8 @@
 use super::ContractArgs;
 use crate::config::Config;
+use crate::mise;
 use crate::service::ServiceRegistry;
 use colored::Colorize;
-use std::process::Command;
 
 pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
     let config = Config::load()?;
@@ -44,13 +44,11 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
     );
     println!();
 
-    // Run the command specified in service.yaml
-    let (program, cmd_args) = contracts_config.command.split_first().unwrap();
+    // Build command, wrapping with mise if .mise.toml exists
+    let mut cmd = mise::build_command(&service.path, &contracts_config.command)?;
+    cmd.current_dir(&contracts_dir);
 
-    let status = Command::new(program)
-        .current_dir(&contracts_dir)
-        .args(cmd_args)
-        .status()?;
+    let status = cmd.status()?;
 
     if status.success() {
         println!();
