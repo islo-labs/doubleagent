@@ -1,0 +1,60 @@
+# Salesforce fake — uses Airbyte source-salesforce connector for snapshot pulling.
+#
+# This is the canonical example of why Airbyte-style connectors matter:
+# Salesforce has 200+ object types with complex relationships. Writing a
+# custom SnapshotConnector would take weeks. With Airbyte, we get a
+# battle-tested connector that handles OAuth, pagination, rate limiting,
+# and all the Salesforce API quirks — for free.
+#
+# Usage:
+#   export SALESFORCE_CLIENT_ID=your-connected-app-id
+#   export SALESFORCE_CLIENT_SECRET=your-secret
+#   export SALESFORCE_REFRESH_TOKEN=your-refresh-token
+#   doubleagent snapshot pull salesforce
+#
+# The fake server (when built) will serve these snapshots as a local SFDC API.
+
+name: salesforce
+version: "0.1"
+description: "Salesforce CRM API fake (Airbyte-backed snapshot connector)"
+docs: https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/
+
+server:
+  command: ["uv", "run", "python", "-m", "doubleagent_sdk.generic_server"]
+
+connector:
+  type: airbyte
+  image: airbyte/source-salesforce:latest
+
+  # Common objects to pull (Salesforce has 200+, pick the useful ones)
+  streams:
+    - Account
+    - Contact
+    - Lead
+    - Opportunity
+    - Case
+    - User
+    - Task
+    - Event
+
+  # Map env vars → Airbyte source-salesforce config
+  config_env:
+    SALESFORCE_CLIENT_ID: client_id
+    SALESFORCE_CLIENT_SECRET: client_secret
+    SALESFORCE_REFRESH_TOKEN: refresh_token
+
+  # Normalize to lowercase resource types
+  stream_mapping:
+    Account: accounts
+    Contact: contacts
+    Lead: leads
+    Opportunity: opportunities
+    Case: cases
+    User: users
+    Task: tasks
+    Event: events
+
+  required_env:
+    - SALESFORCE_CLIENT_ID
+    - SALESFORCE_CLIENT_SECRET
+    - SALESFORCE_REFRESH_TOKEN
