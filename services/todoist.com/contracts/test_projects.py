@@ -19,6 +19,12 @@ def test_create_project(todoist_client: TodoistAPI):
     assert project.color is not None
     assert project.is_archived is False
 
+    # Read back to verify persistence
+    retrieved_project = todoist_client.get_project(project_id=project.id)
+    assert retrieved_project.id == project.id
+    assert retrieved_project.name == "Test Project"
+    assert retrieved_project.is_archived is False
+
 
 def test_get_project(todoist_client: TodoistAPI):
     """Test retrieving a specific project by ID"""
@@ -67,6 +73,12 @@ def test_update_project(todoist_client: TodoistAPI):
     assert updated_project.name == "Updated Name"
     assert updated_project.is_favorite is True
 
+    # Read back to verify persistence
+    retrieved_project = todoist_client.get_project(project_id=project.id)
+    assert retrieved_project.id == project.id
+    assert retrieved_project.name == "Updated Name"
+    assert retrieved_project.is_favorite is True
+
 
 def test_archive_project(todoist_client: TodoistAPI):
     """Test archiving a project"""
@@ -78,6 +90,11 @@ def test_archive_project(todoist_client: TodoistAPI):
 
     assert archived_project.id == project.id
     assert archived_project.is_archived is True
+
+    # Read back to verify persistence
+    retrieved_project = todoist_client.get_project(project_id=project.id)
+    assert retrieved_project.id == project.id
+    assert retrieved_project.is_archived is True
 
     # Verify it doesn't appear in active projects list
     all_projects = []
@@ -99,6 +116,11 @@ def test_unarchive_project(todoist_client: TodoistAPI):
 
     assert unarchived_project.id == project.id
     assert unarchived_project.is_archived is False
+
+    # Read back to verify persistence
+    retrieved_project = todoist_client.get_project(project_id=project.id)
+    assert retrieved_project.id == project.id
+    assert retrieved_project.is_archived is False
 
     # Verify it appears in active projects list again
     all_projects = []
@@ -158,6 +180,11 @@ def test_complete_project_lifecycle(todoist_client: TodoistAPI):
     assert updated.name == "Updated Lifecycle"
     assert updated.is_favorite is True
 
+    # Read back to verify update persistence
+    retrieved_after_update = todoist_client.get_project(project_id=project.id)
+    assert retrieved_after_update.name == "Updated Lifecycle"
+    assert retrieved_after_update.is_favorite is True
+
     # Archive
     archived = todoist_client.archive_project(project_id=project.id)
     assert archived.is_archived is True
@@ -182,6 +209,11 @@ def test_create_nested_project(todoist_client: TodoistAPI):
     assert child.parent_id == parent.id
     assert child.name == "Child Project"
 
+    # Read back to verify persistence
+    retrieved_child = todoist_client.get_project(project_id=child.id)
+    assert retrieved_child.parent_id == parent.id
+    assert retrieved_child.name == "Child Project"
+
 
 def test_update_project_color(todoist_client: TodoistAPI):
     """Test updating a project's color"""
@@ -192,6 +224,10 @@ def test_update_project_color(todoist_client: TodoistAPI):
 
     assert updated.color == "red"
 
+    # Read back to verify persistence
+    retrieved_project = todoist_client.get_project(project_id=project.id)
+    assert retrieved_project.color == "red"
+
 
 def test_update_project_view_style(todoist_client: TodoistAPI):
     """Test updating a project's view style"""
@@ -201,3 +237,7 @@ def test_update_project_view_style(todoist_client: TodoistAPI):
     updated = todoist_client.update_project(project_id=project.id, view_style="board")
 
     assert updated.view_style == "board"
+
+    # Read back to verify persistence
+    retrieved_project = todoist_client.get_project(project_id=project.id)
+    assert retrieved_project.view_style == "board"

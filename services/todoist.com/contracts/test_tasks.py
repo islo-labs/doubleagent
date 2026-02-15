@@ -21,6 +21,11 @@ def test_create_task_basic(todoist_client: TodoistAPI):
     assert task.priority == 1  # Default priority
     assert task.is_completed is False
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Buy milk"
+    assert retrieved_task.priority == 1
+
 
 def test_create_task_with_natural_language_due_date(todoist_client: TodoistAPI):
     """Test creating a task with natural language due date"""
@@ -32,6 +37,12 @@ def test_create_task_with_natural_language_due_date(todoist_client: TodoistAPI):
     assert task.content == "Call dentist"
     assert task.due is not None
     assert task.due.string == "tomorrow at 4pm"
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Call dentist"
+    assert retrieved_task.due is not None
+    assert retrieved_task.due.string == "tomorrow at 4pm"
 
 
 def test_create_task_with_priority(todoist_client: TodoistAPI):
