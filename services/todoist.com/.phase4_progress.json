@@ -6,6 +6,9 @@
     "CRUD operations on sections within projects for organizing tasks hierarchically",
     "CRUD operations on comments attached to tasks and projects with support for attachments",
     "CRUD operations on personal and shared labels including creating, updating, renaming shared labels, and removing shared labels",
-    "Filtering and searching tasks using complex queries combining labels, priorities, due dates, and projects with AND/OR operators"
+    "Filtering and searching tasks using complex queries combining labels, priorities, due dates, and projects with AND/OR operators",
+    "Webhook event delivery for real-time notifications on item:added, item:updated, item:deleted, and project:added events with HMAC signature verification",
+    "Bearer token authentication and request idempotency using X-Request-Id headers for reliable task creation and updates",
+    "Natural language processing for quick task entry with automatic parsing of due dates, priorities, project assignments, and labels from task descriptions"
   ]
 }
