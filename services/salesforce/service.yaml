@@ -54,6 +54,28 @@ connector:
     Task: tasks
     Event: events
 
+  # Smart seeding: pull a small, relationally-consistent dataset
+  # Accounts → contacts/opportunities/cases, with per-parent limits
+  seeding:
+    default_limit: 50
+    seed_streams:
+      - stream: Account
+        limit: 5
+        follow:
+          - child_stream: Contact
+            foreign_key: AccountId
+            limit_per_parent: 10
+          - child_stream: Opportunity
+            foreign_key: AccountId
+            limit_per_parent: 5
+          - child_stream: Case
+            foreign_key: AccountId
+            limit_per_parent: 5
+      - stream: User
+        limit: 20
+      - stream: Lead
+        limit: 10
+
   required_env:
     - SALESFORCE_CLIENT_ID
     - SALESFORCE_CLIENT_SECRET

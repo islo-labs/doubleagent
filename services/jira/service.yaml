@@ -56,6 +56,33 @@ connector:
     issue_fields: fields
     workflows: workflows
 
+  # Smart seeding: pull a small, relationally-consistent dataset
+  # Projects → issues → comments, with per-parent limits
+  seeding:
+    default_limit: 50
+    seed_streams:
+      - stream: projects
+        limit: 3
+        follow:
+          - child_stream: issues
+            foreign_key: project_id
+            limit_per_parent: 10
+          - child_stream: sprints
+            foreign_key: boardId
+            limit_per_parent: 5
+          - child_stream: boards
+            foreign_key: projectId
+            limit_per_parent: 3
+      - stream: issues
+        follow:
+          - child_stream: issue_comments
+            foreign_key: issueId
+            limit_per_parent: 5
+      - stream: users
+        limit: 20
+      - stream: workflows
+        limit: 10
+
   required_env:
     - JIRA_API_TOKEN
     - JIRA_DOMAIN
