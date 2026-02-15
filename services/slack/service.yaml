@@ -13,10 +13,10 @@ brief: |
   and delivering webhook/event payloads.
 
 supported_flows:
-  - crud-channels
-  - crud-messages
-  - crud-reactions
-  - webhooks
+  - CRUD operations on channels
+  - CRUD operations on messages
+  - CRUD operations on reactions
+  - Webhook event delivery
 
 server:
   command: ["uv", "run", "python", "main.py"]
