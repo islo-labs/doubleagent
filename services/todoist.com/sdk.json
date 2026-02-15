@@ -1,0 +1,9 @@
+{
+  "sdk_name": "todoist-api-python",
+  "language": "python",
+  "package": "todoist-api-python",
+  "install_command": "pip install todoist-api-python",
+  "github_url": "https://github.com/Doist/todoist-api-python",
+  "docs_url": "https://doist.github.io/todoist-api-python/",
+  "rationale": "Official SDK by Doist with 221 GitHub stars and ~96K monthly PyPI downloads. 2.4x more popular than the TypeScript alternative. Actively maintained (v3.2.0 released Jan 2026), comprehensive documentation, supports both sync and async clients. Python 3.9+ required. Most widely used for Todoist API integrations and automation tasks."
+}
