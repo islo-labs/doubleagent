@@ -75,6 +75,49 @@ repo = client.get_user().create_repo("test-repo")
 issue = repo.create_issue(title="Test issue")
 ```
 
+## Project Configuration
+
+Define which services your project needs in a `doubleagent.yaml` file at the root of your repository:
+
+```yaml
+services:
+  - github
+  - slack
+```
+
+When this file exists, you can install all services at once:
+
+```bash
+# Reads doubleagent.yaml and installs all listed services
+doubleagent add
+```
+
+Without the file, you specify services explicitly:
+
+```bash
+doubleagent add github slack
+```
+
+The CLI finds `doubleagent.yaml` (or `doubleagent.yml`) by searching from the current directory upward, so it works from any subdirectory in your project.
+
+### Example: full project setup
+
+```yaml
+# doubleagent.yaml
+services:
+  - github
+  - slack
+  - stripe
+```
+
+```bash
+# One command to install everything
+doubleagent add
+
+# Start the services you need
+doubleagent start github slack
+```
+
 ## Fakes, Not Mocks
 
 **Mocks** return hard-coded responses. Call `create_customer()` and get `{"id": "cus_123"}` every time.
