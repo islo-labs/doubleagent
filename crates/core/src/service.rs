@@ -30,9 +30,51 @@ pub struct ServiceDefinition {
     pub server: ServerConfig,
     /// Contract test configuration
     pub contracts: Option<ContractsConfig>,
+    /// Connector configuration for snapshot pulling
+    pub connector: Option<ConnectorConfig>,
     /// Path to the service directory (not serialized)
     #[serde(skip)]
     pub path: PathBuf,
+}
+
+/// Connector configuration — supports both native Python connectors
+/// and Airbyte source connectors (Docker-based).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectorConfig {
+    /// Connector type: "native" (default) or "airbyte"
+    #[serde(default = "default_connector_type")]
+    pub r#type: String,
+    /// For native: Python module path (e.g., "connector.github_connector")
+    pub module: Option<String>,
+    /// For native: Python class name (e.g., "GitHubConnector")
+    pub class: Option<String>,
+    /// For airbyte: Docker image name (e.g., "airbyte/source-github:latest")
+    pub image: Option<String>,
+    /// For airbyte: list of streams to pull (empty = all)
+    #[serde(default)]
+    pub streams: Vec<String>,
+    /// For airbyte: env var → connector config path mapping
+    #[serde(default)]
+    pub config_env: HashMap<String, String>,
+    /// For airbyte: Airbyte stream name → DoubleAgent resource type mapping
+    #[serde(default)]
+    pub stream_mapping: HashMap<String, String>,
+    /// Required environment variables
+    #[serde(default)]
+    pub required_env: Vec<String>,
+    /// Required OAuth scopes (documentation only)
+    #[serde(default)]
+    pub required_scopes: Vec<String>,
+    /// Smart seeding configuration (passed as JSON to Python subprocess)
+    #[serde(default)]
+    pub seeding: Option<serde_json::Value>,
+    /// Backend preference: "pyairbyte" (default) or "docker"
+    #[serde(default)]
+    pub backend: Option<String>,
+}
+
+fn default_connector_type() -> String {
+    "native".to_string()
 }
 
 /// Server configuration for a service.
