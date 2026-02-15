@@ -35,6 +35,17 @@ version: "1.0"
 description: {description}
 docs: {api_docs_url}
 
+brief: |
+  # A couple of paragraphs describing the real service and its main purpose.
+  # Provided as context to the contract test creation agent.
+
+supported_flows:
+  # List of API flows this service supports.
+  # Displayed in the registry and used to inform the contract test creation
+  # agent which flows should be tested.
+  - {flow-1}
+  - {flow-2}
+
 server:
   command: ["uv", "run", "python", "main.py"]
   # Port is managed by the CLI via --port flag or DOUBLEAGENT_PORT env var

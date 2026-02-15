@@ -18,6 +18,14 @@ pub struct ServiceDefinition {
     pub description: Option<String>,
     /// URL to documentation
     pub docs: Option<String>,
+    /// Multi-line description of the service and its main purpose,
+    /// provided as context to the contract test creation agent.
+    pub brief: Option<String>,
+    /// API flows this service supports (e.g., "oauth", "crud-repos", "webhooks").
+    /// Used for registry display and to inform the contract test creation agent
+    /// which flows should be tested.
+    #[serde(default)]
+    pub supported_flows: Vec<String>,
     /// Server configuration
     pub server: ServerConfig,
     /// Contract test configuration

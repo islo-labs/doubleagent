@@ -3,6 +3,21 @@ version: "1.0"
 description: Slack Web API fake
 docs: https://api.slack.com/methods
 
+brief: |
+  Slack is a messaging platform for teams and organizations. Its Web API
+  provides methods for posting messages, managing channels, users,
+  reactions, file uploads, and more.
+
+  This fake implements the core Slack Web API methods that AI agents
+  typically use: sending and reading messages, managing channels,
+  and delivering webhook/event payloads.
+
+supported_flows:
+  - crud-channels
+  - crud-messages
+  - crud-reactions
+  - webhooks
+
 server:
   command: ["uv", "run", "python", "main.py"]
 
