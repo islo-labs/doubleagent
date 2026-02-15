@@ -1,5 +1,9 @@
 {
   "reviewed_flows": [
-    "CRUD operations on projects including creating, updating, archiving, unarchiving, deleting projects, and retrieving project collaborators"
+    "CRUD operations on projects including creating, updating, archiving, unarchiving, deleting projects, and retrieving project collaborators",
+    "CRUD operations on tasks with support for natural language due dates (e.g., 'tomorrow at 4pm', 'every Monday'), priority levels (P1-P4), labels, and recurring task patterns",
+    "Task lifecycle management including closing completed tasks, reopening tasks, and filtering active tasks by project, section, label, and priority",
+    "CRUD operations on sections within projects for organizing tasks hierarchically",
+    "CRUD operations on comments attached to tasks and projects with support for attachments"
   ]
 }
