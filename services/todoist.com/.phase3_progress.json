@@ -1,0 +1,15 @@
+{
+  "scaffold_done": true,
+  "implemented_flows": [
+    "CRUD operations on projects including creating, updating, archiving, unarchiving, deleting projects, and retrieving project collaborators",
+    "CRUD operations on tasks with support for natural language due dates (e.g., 'tomorrow at 4pm', 'every Monday'), priority levels (P1-P4), labels, and recurring task patterns",
+    "Task lifecycle management including closing completed tasks, reopening tasks, and filtering active tasks by project, section, label, and priority",
+    "CRUD operations on sections within projects for organizing tasks hierarchically",
+    "CRUD operations on comments attached to tasks and projects with support for attachments",
+    "CRUD operations on personal and shared labels including creating, updating, renaming shared labels, and removing shared labels",
+    "Filtering and searching tasks using complex queries combining labels, priorities, due dates, and projects with AND/OR operators",
+    "Webhook event delivery for real-time notifications on item:added, item:updated, item:deleted, and project:added events with HMAC signature verification",
+    "Bearer token authentication and request idempotency using X-Request-Id headers for reliable task creation and updates",
+    "Natural language processing for quick task entry with automatic parsing of due dates, priorities, project assignments, and labels from task descriptions"
+  ]
+}
