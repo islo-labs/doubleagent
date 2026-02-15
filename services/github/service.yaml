@@ -3,6 +3,21 @@ version: "1.0"
 description: GitHub REST API fake
 docs: https://docs.github.com/en/rest
 
+brief: |
+  GitHub is a developer platform for version control and collaboration.
+  Its REST API allows programmatic access to repositories, issues,
+  pull requests, users, organizations, and more.
+
+  This fake implements the core GitHub REST API surface that AI agents
+  typically interact with: repository management, issue and pull request
+  workflows, and webhook event delivery.
+
+supported_flows:
+  - crud-repos
+  - crud-issues
+  - crud-pull-requests
+  - webhooks
+
 server:
   command: ["uv", "run", "python", "main.py"]
 

@@ -87,6 +87,18 @@ version: "1.0"
 description: Description of what this service fakes
 docs: https://api.example.com/docs
 
+brief: |
+  A couple of paragraphs describing the real service and its main purpose.
+  This is provided as context to the contract test creation agent.
+
+  Include what the API is used for and which areas of functionality
+  this fake covers.
+
+supported_flows:
+  - crud-resources
+  - search
+  - webhooks
+
 server:
   command: ["uv", "run", "python", "main.py"]
   port: 8080
