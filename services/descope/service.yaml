@@ -1,0 +1,20 @@
+name: descope
+version: "1.0"
+description: Descope Authentication & User Management API fake
+docs: https://docs.descope.com/api
+
+server:
+  command: ["uv", "run", "python", "main.py"]
+
+contracts:
+  command: ["uv", "run", "pytest", "-v", "--tb=short"]
+
+features:
+  webhooks: true
+  snapshots: true
+
+connector:
+  module: "connector.descope_connector"
+  class: "DescopeConnector"
+  required_env: ["DESCOPE_PROJECT_ID", "DESCOPE_MANAGEMENT_KEY"]
+  required_scopes: ["read:users", "read:tenants", "read:roles"]

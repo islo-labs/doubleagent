@@ -1,0 +1,73 @@
+# Descope startup fixture — small SaaS team
+# Usage: doubleagent seed descope --fixture startup
+
+tenants:
+  - id: "T_acme"
+    name: "Acme Corp"
+    selfProvisioningDomains: ["acme.com"]
+  - id: "T_partner"
+    name: "Partner Inc"
+    selfProvisioningDomains: ["partner.io"]
+
+permissions:
+  - name: "read:data"
+    description: "Read data"
+  - name: "write:data"
+    description: "Write data"
+  - name: "admin:all"
+    description: "Full admin access"
+
+roles:
+  - name: "admin"
+    description: "Administrator with full access"
+    permissionNames: ["read:data", "write:data", "admin:all"]
+  - name: "editor"
+    description: "Can read and write data"
+    permissionNames: ["read:data", "write:data"]
+  - name: "viewer"
+    description: "Read-only access"
+    permissionNames: ["read:data"]
+
+users:
+  - loginId: "alice@acme.com"
+    email: "alice@acme.com"
+    name: "Alice Johnson"
+    givenName: "Alice"
+    familyName: "Johnson"
+    roleNames: ["admin"]
+    userTenants: ["T_acme"]
+    verifiedEmail: true
+  - loginId: "bob@acme.com"
+    email: "bob@acme.com"
+    name: "Bob Smith"
+    givenName: "Bob"
+    familyName: "Smith"
+    roleNames: ["editor"]
+    userTenants: ["T_acme"]
+    verifiedEmail: true
+  - loginId: "carol@partner.io"
+    email: "carol@partner.io"
+    name: "Carol Williams"
+    givenName: "Carol"
+    familyName: "Williams"
+    roleNames: ["viewer"]
+    userTenants: ["T_partner"]
+    verifiedEmail: true
+  - loginId: "dave@acme.com"
+    email: "dave@acme.com"
+    name: "Dave Brown"
+    roleNames: ["viewer"]
+    userTenants: ["T_acme", "T_partner"]
+    verifiedEmail: false
+
+access_keys:
+  - id: "AK_ci_pipeline"
+    name: "ci-pipeline"
+    userId: ""
+    tenantId: "T_acme"
+    roleNames: ["admin"]
+  - id: "AK_readonly_bot"
+    name: "readonly-bot"
+    userId: ""
+    tenantId: "T_acme"
+    roleNames: ["viewer"]
