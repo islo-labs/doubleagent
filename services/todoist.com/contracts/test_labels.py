@@ -207,14 +207,16 @@ def test_search_labels_by_name(todoist_client: TodoistAPI):
 
 def test_get_shared_labels(todoist_client: TodoistAPI):
     """Test retrieving all shared labels"""
-    # Get shared labels - returns an iterator of lists
+    # Get shared labels - returns an iterator of lists of strings (label names)
     shared_labels_iterator = todoist_client.get_shared_labels()
     shared_labels = []
     for label_batch in shared_labels_iterator:
         shared_labels.extend(label_batch)
 
-    # Initially should be empty or contain pre-existing shared labels
+    # Initially should be empty or contain pre-existing shared label names (strings)
     assert isinstance(shared_labels, list)
+    # All elements should be strings (label names)
+    assert all(isinstance(label, str) for label in shared_labels)
 
 
 def test_rename_shared_label(todoist_client: TodoistAPI, fake_url: str):
@@ -235,15 +237,21 @@ def test_rename_shared_label(todoist_client: TodoistAPI, fake_url: str):
     }
     requests.post(f"{fake_url}/_doubleagent/seed", json=seed_data)
 
-    # Now rename it - the SDK returns a dict, not a Label object
-    renamed_label = todoist_client.rename_shared_label(
+    # Now rename it - the SDK returns bool (True on success)
+    result = todoist_client.rename_shared_label(
         name="TeamLabel", new_name="UpdatedTeamLabel"
     )
 
-    assert renamed_label is not None
-    assert isinstance(renamed_label, dict)
-    assert renamed_label["name"] == "UpdatedTeamLabel"
-    assert renamed_label["id"] == "shared1"
+    assert result is True
+
+    # Verify the rename by getting shared labels (which returns label names as strings)
+    shared_labels_iterator = todoist_client.get_shared_labels()
+    shared_labels = []
+    for label_batch in shared_labels_iterator:
+        shared_labels.extend(label_batch)
+
+    assert "UpdatedTeamLabel" in shared_labels
+    assert "TeamLabel" not in shared_labels
 
 
 def test_remove_shared_label(todoist_client: TodoistAPI, fake_url: str):
@@ -269,14 +277,14 @@ def test_remove_shared_label(todoist_client: TodoistAPI, fake_url: str):
 
     assert result is True
 
-    # Verify it's removed
+    # Verify it's removed - get_shared_labels returns strings (label names)
     shared_labels_iterator = todoist_client.get_shared_labels()
     shared_labels = []
     for label_batch in shared_labels_iterator:
         shared_labels.extend(label_batch)
 
-    label_names = [label.name for label in shared_labels]
-    assert "ToRemoveLabel" not in label_names
+    # shared_labels is already a list of strings (label names)
+    assert "ToRemoveLabel" not in shared_labels
 
 
 def test_label_used_in_task(todoist_client: TodoistAPI):

@@ -1060,27 +1060,22 @@ def search_labels():
 
 @app.route("/api/v1/labels/shared", methods=["GET"])
 def get_shared_labels():
-    """Get all shared labels"""
-    labels = [
-        create_label_response(label)
+    """Get all shared labels - returns label names as strings"""
+    # The API returns just the label names as strings, not full label objects
+    label_names = [
+        label["name"]
         for label in state["shared_labels"].values()
     ]
     # Return in paginated format with results key
-    return jsonify({"results": labels})
+    return jsonify({"results": label_names})
 
 @app.route("/api/v1/labels/shared/rename", methods=["POST"])
 def rename_shared_label():
     """Rename a shared label"""
-    # The SDK sends query parameters, not JSON body
+    # The SDK sends query parameters for name, and JSON body for new_name
     old_name = request.args.get("name")
-    new_name = request.args.get("new_name")
-
-    # Also check JSON body as fallback
-    if not old_name or not new_name:
-        data = request.get_json()
-        if data:
-            old_name = data.get("name", old_name)
-            new_name = data.get("new_name", new_name)
+    data = request.get_json() or {}
+    new_name = data.get("new_name")
 
     if not old_name or not new_name:
         return jsonify({"error": "Both name and new_name are required"}), 400
@@ -1098,7 +1093,8 @@ def rename_shared_label():
     # Update the name
     label_to_rename["name"] = new_name
 
-    return jsonify(create_label_response(label_to_rename))
+    # Return True to indicate success (SDK expects bool)
+    return jsonify(True)
 
 @app.route("/api/v1/labels/shared/remove", methods=["POST"])
 def remove_shared_label():
