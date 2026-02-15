@@ -1,0 +1,125 @@
+# Descope enterprise fixture — large org with multiple tenants
+# Usage: doubleagent seed descope --fixture enterprise
+
+tenants:
+  - id: "T_headquarters"
+    name: "GlobalCorp HQ"
+    selfProvisioningDomains: ["globalcorp.com"]
+  - id: "T_emea"
+    name: "GlobalCorp EMEA"
+    selfProvisioningDomains: ["emea.globalcorp.com"]
+  - id: "T_apac"
+    name: "GlobalCorp APAC"
+    selfProvisioningDomains: ["apac.globalcorp.com"]
+  - id: "T_customer_a"
+    name: "Customer Alpha"
+    selfProvisioningDomains: ["alpha.co"]
+  - id: "T_customer_b"
+    name: "Customer Beta"
+    selfProvisioningDomains: ["beta.io"]
+
+permissions:
+  - name: "read:data"
+    description: "Read data"
+  - name: "write:data"
+    description: "Write data"
+  - name: "admin:all"
+    description: "Full admin access"
+  - name: "billing:read"
+    description: "Read billing info"
+  - name: "billing:write"
+    description: "Manage billing"
+  - name: "audit:read"
+    description: "Read audit logs"
+
+roles:
+  - name: "super-admin"
+    description: "Organization-level super admin"
+    permissionNames: ["read:data", "write:data", "admin:all", "billing:read", "billing:write", "audit:read"]
+  - name: "tenant-admin"
+    description: "Tenant-level admin"
+    permissionNames: ["read:data", "write:data", "admin:all"]
+  - name: "billing-admin"
+    description: "Billing management"
+    permissionNames: ["billing:read", "billing:write"]
+  - name: "developer"
+    description: "Developer access"
+    permissionNames: ["read:data", "write:data"]
+  - name: "auditor"
+    description: "Audit read-only"
+    permissionNames: ["audit:read", "read:data"]
+  - name: "viewer"
+    description: "Read-only"
+    permissionNames: ["read:data"]
+
+users:
+  - loginId: "cto@globalcorp.com"
+    email: "cto@globalcorp.com"
+    name: "Eva Martinez"
+    givenName: "Eva"
+    familyName: "Martinez"
+    roleNames: ["super-admin"]
+    userTenants: ["T_headquarters", "T_emea", "T_apac"]
+    verifiedEmail: true
+  - loginId: "ops-lead@globalcorp.com"
+    email: "ops-lead@globalcorp.com"
+    name: "Frank Chen"
+    roleNames: ["tenant-admin"]
+    userTenants: ["T_headquarters"]
+    verifiedEmail: true
+  - loginId: "emea-admin@emea.globalcorp.com"
+    email: "emea-admin@emea.globalcorp.com"
+    name: "Greta Hoffman"
+    roleNames: ["tenant-admin"]
+    userTenants: ["T_emea"]
+    verifiedEmail: true
+  - loginId: "dev1@globalcorp.com"
+    email: "dev1@globalcorp.com"
+    name: "Hiro Tanaka"
+    roleNames: ["developer"]
+    userTenants: ["T_apac"]
+    verifiedEmail: true
+  - loginId: "dev2@globalcorp.com"
+    email: "dev2@globalcorp.com"
+    name: "Ines Oliveira"
+    roleNames: ["developer"]
+    userTenants: ["T_headquarters", "T_emea"]
+    verifiedEmail: true
+  - loginId: "auditor@globalcorp.com"
+    email: "auditor@globalcorp.com"
+    name: "Jack Mitchell"
+    roleNames: ["auditor"]
+    userTenants: ["T_headquarters", "T_emea", "T_apac"]
+    verifiedEmail: true
+  - loginId: "billing@globalcorp.com"
+    email: "billing@globalcorp.com"
+    name: "Kate Robinson"
+    roleNames: ["billing-admin"]
+    userTenants: ["T_headquarters"]
+    verifiedEmail: true
+  - loginId: "contact@alpha.co"
+    email: "contact@alpha.co"
+    name: "Leo Kim"
+    roleNames: ["viewer"]
+    userTenants: ["T_customer_a"]
+    verifiedEmail: true
+  - loginId: "admin@beta.io"
+    email: "admin@beta.io"
+    name: "Maya Patel"
+    roleNames: ["tenant-admin"]
+    userTenants: ["T_customer_b"]
+    verifiedEmail: true
+
+access_keys:
+  - id: "AK_ci_main"
+    name: "ci-main-pipeline"
+    tenantId: "T_headquarters"
+    roleNames: ["super-admin"]
+  - id: "AK_monitoring"
+    name: "monitoring-service"
+    tenantId: "T_headquarters"
+    roleNames: ["auditor"]
+  - id: "AK_customer_a_sync"
+    name: "customer-a-sync"
+    tenantId: "T_customer_a"
+    roleNames: ["viewer"]

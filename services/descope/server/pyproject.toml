@@ -1,0 +1,17 @@
+[project]
+name = "descope-fake"
+version = "1.0.0"
+description = "Descope Authentication & User Management API fake for DoubleAgent"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.0.0",
+    "pyjwt[crypto]>=2.8.0",
+    "cryptography>=42.0.0",
+    "doubleagent-sdk",
+]
+
+[tool.uv.sources]
+doubleagent-sdk = { path = "../../_lib", editable = true }
