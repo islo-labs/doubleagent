@@ -177,11 +177,8 @@ async fn run_list(args: super::SnapshotListArgs) -> anyhow::Result<()> {
 
     if snapshots.is_empty() {
         println!("No snapshots found.");
-        if service.is_some() {
-            println!(
-                "  Run 'doubleagent snapshot pull {}' to create one.",
-                service.unwrap()
-            );
+        if let Some(svc) = service {
+            println!("  Run 'doubleagent snapshot pull {}' to create one.", svc);
         }
         return Ok(());
     }
@@ -266,12 +263,23 @@ async fn run_push(args: super::SnapshotPushArgs) -> anyhow::Result<()> {
     );
 
     // Determine command based on registry prefix
-    let dest = format!("{}/{}/{}/", registry.trim_end_matches('/'), args.service, args.profile);
+    let dest = format!(
+        "{}/{}/{}/",
+        registry.trim_end_matches('/'),
+        args.service,
+        args.profile
+    );
 
     let (tool, sync_args) = if registry.starts_with("s3://") {
-        ("aws", vec!["s3", "sync", dir.to_str().unwrap(), &dest, "--delete"])
+        (
+            "aws",
+            vec!["s3", "sync", dir.to_str().unwrap(), &dest, "--delete"],
+        )
     } else if registry.starts_with("gs://") {
-        ("gsutil", vec!["-m", "rsync", "-r", "-d", dir.to_str().unwrap(), &dest])
+        (
+            "gsutil",
+            vec!["-m", "rsync", "-r", "-d", dir.to_str().unwrap(), &dest],
+        )
     } else {
         return Err(anyhow::anyhow!(
             "Unsupported registry protocol. Use s3://... or gs://..."
@@ -284,13 +292,12 @@ async fn run_push(args: super::SnapshotPushArgs) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("Failed to run '{}': {}. Is it installed?", tool, e))?;
 
     if status.success() {
-        println!(
-            "{} Snapshot pushed to {}",
-            "✓".green(),
-            dest.cyan(),
-        );
+        println!("{} Snapshot pushed to {}", "✓".green(), dest.cyan(),);
     } else {
-        return Err(anyhow::anyhow!("Push failed (exit code: {:?})", status.code()));
+        return Err(anyhow::anyhow!(
+            "Push failed (exit code: {:?})",
+            status.code()
+        ));
     }
 
     Ok(())
