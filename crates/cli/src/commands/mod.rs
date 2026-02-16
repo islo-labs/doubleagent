@@ -99,10 +99,6 @@ pub struct StopArgs {
 pub struct ResetArgs {
     /// Services to reset (empty = all running)
     pub services: Vec<String>,
-
-    /// Hard reset: clear baseline snapshot in addition to overlay
-    #[arg(long)]
-    pub hard: bool,
 }
 
 #[derive(Parser)]
