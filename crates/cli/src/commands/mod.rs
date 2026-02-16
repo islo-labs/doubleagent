@@ -99,6 +99,10 @@ pub struct StopArgs {
 pub struct ResetArgs {
     /// Services to reset (empty = all running)
     pub services: Vec<String>,
+
+    /// Hard reset: clear baseline snapshot in addition to overlay
+    #[arg(long)]
+    pub hard: bool,
 }
 
 #[derive(Parser)]
@@ -107,7 +111,11 @@ pub struct SeedArgs {
     pub service: String,
 
     /// Path to seed data file (YAML or JSON)
-    pub file: String,
+    pub file: Option<String>,
+
+    /// Name of a fixture in the service's fixtures/ directory (e.g. "startup")
+    #[arg(long)]
+    pub fixture: Option<String>,
 }
 
 #[derive(Parser)]

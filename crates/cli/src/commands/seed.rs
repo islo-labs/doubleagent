@@ -1,7 +1,48 @@
 use super::SeedArgs;
 use colored::Colorize;
-use doubleagent_core::{Config, ProcessManager};
+use doubleagent_core::{Config, ProcessManager, ServiceRegistry};
 use std::fs;
+use std::path::PathBuf;
+
+/// Resolve the seed data file path from args.
+///
+/// Priority: --fixture (resolves via service fixtures dir) > --file (explicit path).
+fn resolve_seed_file(
+    args: &SeedArgs,
+    config: &Config,
+) -> anyhow::Result<PathBuf> {
+    if let Some(ref fixture_name) = args.fixture {
+        // Resolve fixture from the service's fixtures/ directory
+        let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url, &config.branch)?;
+        let service = registry.get(&args.service)?;
+        let fixture_path = service.path.join("fixtures").join(format!("{}.yaml", fixture_name));
+
+        if !fixture_path.exists() {
+            // Try .yml extension
+            let yml_path = service.path.join("fixtures").join(format!("{}.yml", fixture_name));
+            if yml_path.exists() {
+                return Ok(yml_path);
+            }
+            anyhow::bail!(
+                "Fixture '{}' not found for service '{}' (looked in {})",
+                fixture_name,
+                args.service,
+                fixture_path.display()
+            );
+        }
+        Ok(fixture_path)
+    } else if let Some(ref file_path) = args.file {
+        Ok(PathBuf::from(file_path))
+    } else {
+        anyhow::bail!(
+            "Either --fixture or a file path is required.\n\
+             Usage: doubleagent seed {} --fixture startup\n\
+             Usage: doubleagent seed {} path/to/data.yaml",
+            args.service,
+            args.service
+        )
+    }
+}
 
 pub async fn run(args: SeedArgs) -> anyhow::Result<()> {
     let config = Config::load()?;
@@ -11,15 +52,23 @@ pub async fn run(args: SeedArgs) -> anyhow::Result<()> {
         .get_info(&args.service)
         .ok_or_else(|| anyhow::anyhow!("{} is not running", args.service))?;
 
+    let seed_file = resolve_seed_file(&args, &config)?;
+
     // Read and parse seed file
-    let content = fs::read_to_string(&args.file)?;
-    let data: serde_json::Value = if args.file.ends_with(".yaml") || args.file.ends_with(".yml") {
+    let content = fs::read_to_string(&seed_file)?;
+    let file_str = seed_file.to_string_lossy();
+    let data: serde_json::Value = if file_str.ends_with(".yaml") || file_str.ends_with(".yml") {
         serde_yaml::from_str(&content)?
     } else {
         serde_json::from_str(&content)?
     };
 
-    print!("{} Seeding {}...", "⬆".blue(), args.service);
+    print!(
+        "{} Seeding {} from {}...",
+        "⬆".blue(),
+        args.service,
+        seed_file.display()
+    );
 
     let url = format!("http://localhost:{}/_doubleagent/seed", info.port);
     let client = reqwest::Client::new();

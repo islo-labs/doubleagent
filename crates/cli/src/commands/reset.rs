@@ -17,11 +17,21 @@ pub async fn run(args: ResetArgs) -> anyhow::Result<()> {
         return Ok(());
     }
 
+    let mode = if args.hard { "hard" } else { "soft" };
+
     for service_name in &services {
         if let Some(info) = manager.get_info(service_name) {
-            print!("{} Resetting {}...", "↻".blue(), service_name);
+            print!(
+                "{} Resetting {} ({})...",
+                "↻".blue(),
+                service_name,
+                mode
+            );
 
-            let url = format!("http://localhost:{}/_doubleagent/reset", info.port);
+            let mut url = format!("http://localhost:{}/_doubleagent/reset", info.port);
+            if args.hard {
+                url.push_str("?hard=true");
+            }
             let client = reqwest::Client::new();
 
             match client.post(&url).send().await {
