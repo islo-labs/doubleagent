@@ -20,7 +20,7 @@ description: "Jira Cloud API fake (Airbyte-backed snapshot connector)"
 docs: https://developer.atlassian.com/cloud/jira/platform/rest/v3/
 
 server:
-  command: ["uv", "run", "python", "-m", "doubleagent_sdk.generic_server"]
+  command: ["uv", "run", "python", "main.py"]
 
 connector:
   type: airbyte

@@ -12,8 +12,12 @@ pub async fn run(args: SeedArgs) -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("{} is not running", args.service))?;
 
     // Read and parse seed file
-    let content = fs::read_to_string(&args.file)?;
-    let data: serde_json::Value = if args.file.ends_with(".yaml") || args.file.ends_with(".yml") {
+    let file = args
+        .file
+        .as_deref()
+        .ok_or_else(|| anyhow::anyhow!("Seed file path is required (or use --fixture)"))?;
+    let content = fs::read_to_string(file)?;
+    let data: serde_json::Value = if file.ends_with(".yaml") || file.ends_with(".yml") {
         serde_yaml::from_str(&content)?
     } else {
         serde_json::from_str(&content)?

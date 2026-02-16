@@ -20,7 +20,7 @@ description: "Salesforce CRM API fake (Airbyte-backed snapshot connector)"
 docs: https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/
 
 server:
-  command: ["uv", "run", "python", "-m", "doubleagent_sdk.generic_server"]
+  command: ["uv", "run", "python", "main.py"]
 
 connector:
   type: airbyte

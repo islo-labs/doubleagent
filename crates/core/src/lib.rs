@@ -9,6 +9,7 @@ pub mod git;
 pub mod mise;
 pub mod process;
 pub mod service;
+pub mod snapshot;
 
 // Re-exports for convenience
 pub use config::Config;
