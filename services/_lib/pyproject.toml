@@ -1,0 +1,9 @@
+[project]
+name = "snapshot-pull"
+version = "0.1.0"
+description = "DoubleAgent snapshot pull tool — Airbyte connectors + smart seeding + PII redaction"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+airbyte = ["airbyte>=0.19.0"]

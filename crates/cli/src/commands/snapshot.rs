@@ -26,8 +26,6 @@ async fn run_pull(args: super::SnapshotPullArgs) -> anyhow::Result<()> {
     let limit = args.limit;
     let no_redact = args.no_redact;
     let incremental = args.incremental;
-    let pull_args_backend = args.backend.clone();
-
     println!(
         "{} Pulling {} snapshot '{}' (limit={}, redact={}{})...",
         "▶".blue(),
@@ -50,46 +48,108 @@ async fn run_pull(args: super::SnapshotPullArgs) -> anyhow::Result<()> {
 
     let service_def = registry.get_or_install(service, true)?;
 
-    // Look for a connector pull script in the service directory.
-    // Each service owns its own connector implementation.
-    let connector_script = service_def.path.join("connector").join("pull.py");
-    if !connector_script.exists() {
-        return Err(anyhow::anyhow!(
-            "No connector/pull.py found for service '{}'. \n\
-             Add a pull script at services/{}/connector/pull.py, \n\
-             or use 'doubleagent seed {} --fixture <name>' to load fixture data.",
-            service,
-            service,
-            service,
-        ));
-    }
+    // Detect connector type: "airbyte" routes to the generic snapshot_pull tool,
+    // "native" (default) routes to the service's own connector/pull.py.
+    let is_airbyte = service_def
+        .connector
+        .as_ref()
+        .map(|c| c.r#type == "airbyte")
+        .unwrap_or(false);
 
-    let mut cmd_args = vec![
-        "uv".to_string(),
-        "run".to_string(),
-        "python".to_string(),
-        connector_script.display().to_string(),
-        "--service".to_string(),
-        service.clone(),
-        "--profile".to_string(),
-        profile.to_string(),
-    ];
-    if let Some(l) = limit {
-        cmd_args.push("--limit".to_string());
-        cmd_args.push(l.to_string());
-    }
-    if no_redact {
-        cmd_args.push("--no-redact".to_string());
-    }
-    if incremental {
-        cmd_args.push("--incremental".to_string());
-    }
-    if let Some(ref backend) = pull_args_backend {
-        cmd_args.push("--backend".to_string());
-        cmd_args.push(backend.clone());
-    }
+    let (cmd_args, work_dir) = if is_airbyte {
+        let connector = service_def.connector.as_ref().unwrap();
+        let image = connector.image.as_deref().unwrap_or("");
+        if image.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Airbyte connector for '{}' is missing 'image' in service.yaml",
+                service
+            ));
+        }
 
-    let work_dir = service_def.path.clone();
+        println!("  Using Airbyte connector: {}", image.to_string().cyan());
+
+        let mut args = vec![
+            "uv".to_string(),
+            "run".to_string(),
+            "python".to_string(),
+            "-m".to_string(),
+            "snapshot_pull".to_string(),
+            "--service".to_string(),
+            service.clone(),
+            "--profile".to_string(),
+            profile.to_string(),
+            "--image".to_string(),
+            image.to_string(),
+        ];
+
+        if !connector.streams.is_empty() {
+            args.push("--streams".to_string());
+            args.push(connector.streams.join(","));
+        }
+        for (env_var, config_path) in &connector.config_env {
+            args.push("--config-env".to_string());
+            args.push(format!("{}={}", env_var, config_path));
+        }
+        for (ab_name, da_name) in &connector.stream_mapping {
+            args.push("--stream-mapping".to_string());
+            args.push(format!("{}={}", ab_name, da_name));
+        }
+        if let Some(ref seeding) = connector.seeding {
+            let seeding_json = serde_json::to_string(seeding)?;
+            args.push("--seeding-json".to_string());
+            args.push(seeding_json);
+        }
+        if let Some(l) = limit {
+            args.push("--limit".to_string());
+            args.push(l.to_string());
+        }
+        if no_redact {
+            args.push("--no-redact".to_string());
+        }
+        if incremental {
+            args.push("--incremental".to_string());
+        }
+
+        // Run from _lib directory where snapshot_pull package lives
+        let lib_dir = service_def.path.join("..").join("_lib");
+        (args, lib_dir)
+    } else {
+        // Native connector: run the service's own connector/pull.py
+        let connector_script = service_def.path.join("connector").join("pull.py");
+        if !connector_script.exists() {
+            return Err(anyhow::anyhow!(
+                "No connector/pull.py found for service '{}'. \n\
+                 Add a pull script at services/{}/connector/pull.py, \n\
+                 or use 'doubleagent seed {} --fixture <name>' to load fixture data.",
+                service,
+                service,
+                service,
+            ));
+        }
+
+        let mut args = vec![
+            "uv".to_string(),
+            "run".to_string(),
+            "python".to_string(),
+            connector_script.display().to_string(),
+            "--service".to_string(),
+            service.clone(),
+            "--profile".to_string(),
+            profile.to_string(),
+        ];
+        if let Some(l) = limit {
+            args.push("--limit".to_string());
+            args.push(l.to_string());
+        }
+        if no_redact {
+            args.push("--no-redact".to_string());
+        }
+        if incremental {
+            args.push("--incremental".to_string());
+        }
+
+        (args, service_def.path.clone())
+    };
 
     let mut cmd = doubleagent_core::mise::build_command(&work_dir, &cmd_args)?;
     cmd.current_dir(&work_dir);
