@@ -6,6 +6,5 @@ requires-python = ">=3.11"
 dependencies = [
     "pytest>=8.0",
     "httpx>=0.27",
-    "auth0-python>=4.7",
     "pyjwt[crypto]>=2.8.0",
 ]

@@ -5,8 +5,6 @@ Contract tests for Auth0 Roles Management API + User-Role assignments.
 import httpx
 import uuid
 
-SERVICE_URL = __import__("os").environ["DOUBLEAGENT_AUTH0_URL"]
-
 
 class TestRoleCRUD:
     def test_create_role(self, base_url, mgmt_headers):

@@ -1,8 +1,4 @@
-"""
-pytest fixtures for Auth0 contract tests.
-
-Uses both raw httpx and the official auth0-python SDK.
-"""
+"""pytest fixtures for Auth0 contract tests."""
 
 import os
 
@@ -41,5 +37,5 @@ def mgmt_headers(mgmt_token: str) -> dict:
 @pytest.fixture(autouse=True)
 def reset_fake(base_url: str):
     """Reset state before each test."""
-    httpx.post(f"{base_url}/_doubleagent/reset", params={"hard": "true"})
+    httpx.post(f"{base_url}/_doubleagent/reset")
     yield

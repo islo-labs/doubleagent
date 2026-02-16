@@ -7,8 +7,6 @@ import jwt
 import uuid
 from jwt import PyJWKClient
 
-SERVICE_URL = __import__("os").environ["DOUBLEAGENT_AUTH0_URL"]
-
 
 class TestClientCredentials:
     def test_client_credentials_returns_access_token(self, base_url):

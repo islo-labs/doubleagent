@@ -5,8 +5,6 @@ Contract tests for Auth0 Users Management API.
 import httpx
 import uuid
 
-SERVICE_URL = __import__("os").environ["DOUBLEAGENT_AUTH0_URL"]
-
 
 class TestUserCRUD:
     """Full create/read/update/delete lifecycle."""
