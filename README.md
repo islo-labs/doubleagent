@@ -35,7 +35,6 @@ doubleagent start github
 
 ## Usage
 
-
 ### CLI
 
 ```bash
@@ -45,8 +44,10 @@ doubleagent start github slack        # Multiple services
 
 doubleagent status                    # Show running services
 doubleagent stop                      # Stop all
-doubleagent reset github              # Clear state
-doubleagent seed github ./data.yaml   # Load fixtures
+doubleagent reset github              # Clear overlay (keep baseline)
+doubleagent reset github --hard       # Clear everything
+doubleagent seed github --fixture startup  # Load from fixtures/startup.yaml
+doubleagent seed github ./data.yaml        # Load from explicit file
 ```
 
 When a service starts, the CLI prints the environment variable to use:
@@ -75,6 +76,24 @@ repo = client.get_user().create_repo("test-repo")
 issue = repo.create_issue(title="Test issue")
 ```
 
+### Namespace Isolation
+
+Run multiple agents in parallel, each with isolated state:
+
+```python
+import httpx
+
+# Agent A sees only its own state
+httpx.post(url + "/repos", json={...},
+           headers={"X-DoubleAgent-Namespace": "agent-a"})
+
+# Agent B sees only its own state
+httpx.post(url + "/repos", json={...},
+           headers={"X-DoubleAgent-Namespace": "agent-b"})
+```
+
+Both agents share the same baseline snapshot but get independent mutable overlays. Reset one without affecting the other.
+
 ## Project Configuration
 
 Define which services your project needs in a `doubleagent.yaml` file at the root of your repository:
@@ -100,23 +119,20 @@ doubleagent add github slack
 
 The CLI finds `doubleagent.yaml` (or `doubleagent.yml`) by searching from the current directory upward, so it works from any subdirectory in your project.
 
-### Example: full project setup
+## Architecture
 
-```yaml
-# doubleagent.yaml
-services:
-  - github
-  - slack
-  - stripe
-```
+**Copy-on-Write (CoW) State Model:**
+- **Baseline** — immutable snapshot data loaded via `/_doubleagent/bootstrap`
+- **Overlay** — mutable layer capturing all writes per namespace
+- **Tombstones** — mark deleted baseline items without mutating the snapshot
+- `reset` clears overlay + tombstones (back to snapshot)
+- `reset --hard` clears everything including baseline
 
-```bash
-# One command to install everything
-doubleagent add
+**Namespace Isolation:** The `X-DoubleAgent-Namespace` header routes each request to an independent state overlay. All namespaces share the same read-only baseline for memory efficiency.
 
-# Start the services you need
-doubleagent start github slack
-```
+**Webhook Simulation:** Configurable retry with exponential backoff, HMAC-SHA256 signatures, localhost-only allowlist, and a queryable delivery audit log.
+
+See [docs/architecture.md](docs/architecture.md) for details.
 
 ## Fakes, Not Mocks
 
@@ -125,38 +141,43 @@ doubleagent start github slack
 **Fakes** implement real behavior. Create a customer, it gets stored. Retrieve it later, it's there. Delete it, it's gone.
 
 - **Contract-tested** — Every fake passes tests against the real API
-- **Official SDK compatible** — Use PyGithub, stripe-python, etc. directly  
+- **Official SDK compatible** — Use PyGithub, stripe-python, etc. directly
 - **Built by agents, for agents** — Designed for AI agent workflows
 
 ## Available Services
 
-| Service | Status | Official SDK |
-|---------|--------|--------------|
-| GitHub | ✅ Available | PyGithub, octokit |
-| Jira | 🚧 Coming soon | atlassian-python-api |
-| Slack | 🚧 Coming soon | slack_sdk |
-| Okta | 🚧 Coming soon | okta |
-| Auth0 | 🚧 Coming soon | auth0-python |
-| Stripe | 🚧 Coming soon | stripe |
+| Service | Status | Official SDK | Features |
+|---------|--------|--------------|----------|
+| GitHub | Available | PyGithub, octokit | Repos, issues, labels, webhooks |
+| Slack | Available | slack_sdk | Channels, messages, reactions, webhooks |
+| Auth0 | Available | auth0-python | Users, roles, OAuth2 flows, JWKS |
+| Descope | Available | descope-python | Users, tenants, roles, JWT |
+| Jira | Snapshot-only | atlassian-python-api | Airbyte connector |
+| Salesforce | Snapshot-only | simple-salesforce | Airbyte connector |
 
-## Contributing
+## Control Plane API
 
-1. Create `services/<name>/`
-2. Implement the fake with `/_doubleagent/health`, `reset`, and `seed` endpoints
-3. Write contract tests with the official SDK
-4. Validate against the real API
-
-See [docs/contributing.md](docs/contributing.md) for details.
-
-### Required Service Interface
-
-Every service must implement these endpoints:
+Every service implements these endpoints:
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `/_doubleagent/health` | GET | Health check |
-| `/_doubleagent/reset` | POST | Clear all state |
-| `/_doubleagent/seed` | POST | Seed state from JSON |
+| `/_doubleagent/reset` | POST | Reset state (`?hard=true` clears baseline) |
+| `/_doubleagent/seed` | POST | Seed state from JSON/YAML |
+| `/_doubleagent/bootstrap` | POST | Load immutable baseline snapshot |
+| `/_doubleagent/info` | GET | Service info and state stats |
+| `/_doubleagent/webhooks` | GET | Query webhook delivery log |
+| `/_doubleagent/namespaces` | GET | List active namespaces |
+
+## Contributing
+
+1. Create `services/<name>/`
+2. Implement the fake with the control plane endpoints above
+3. Inline the state management classes (StateOverlay, NamespaceRouter, WebhookSimulator) — copy from an existing service like `services/github/server/main.py`
+4. Write contract tests with the official SDK
+5. Add fixtures in `fixtures/startup.yaml`
+
+See [docs/for-agents.md](docs/for-agents.md) for a guide and [skills/add-service.md](skills/add-service.md) for the template.
 
 ## License
 

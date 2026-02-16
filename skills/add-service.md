@@ -5,9 +5,10 @@ You are tasked with adding a new fake service to DoubleAgent. Follow these steps
 ## Context
 
 DoubleAgent provides fake SaaS APIs for AI agent testing. Services are:
-- Standalone HTTP servers (any language, FastAPI/Express recommended)
+- Standalone FastAPI HTTP servers with inlined state management classes
 - Contract-tested using official SDKs
 - Designed to be drop-in replacements for real APIs
+- Namespace-isolated with copy-on-write state
 
 ## Task: Add {SERVICE_NAME} Service
 
@@ -28,6 +29,12 @@ mkdir -p services/{service_name}/{server,contracts,fixtures}
 
 Create these files:
 
+**services/{service_name}/.mise.toml:**
+```toml
+[tools]
+python = "3.11"
+```
+
 **services/{service_name}/service.yaml:**
 ```yaml
 name: {service_name}
@@ -37,68 +44,102 @@ docs: {api_docs_url}
 
 brief: |
   # A couple of paragraphs describing the real service and its main purpose.
-  # Provided as context to the contract test creation agent.
 
 supported_flows:
-  # List of API flows this service supports.
-  # Displayed in the registry and used to inform the contract test creation
-  # agent which flows should be tested.
   - {flow-1}
   - {flow-2}
 
 server:
   command: ["uv", "run", "python", "main.py"]
-  # Port is managed by the CLI via --port flag or DOUBLEAGENT_PORT env var
-  # Default: 8080, multiple services use sequential ports (8080, 8081, ...)
 
 contracts:
-  # Command to run contract tests (language-agnostic)
   command: ["uv", "run", "pytest", "-v", "--tb=short"]
-  # For TypeScript: ["npm", "test"]
-  # For Go: ["go", "test", "./..."]
 
-env:
-  # The CLI sets PORT and DOUBLEAGENT_{SERVICE}_URL automatically
-  {SERVICE}_TOKEN: "doubleagent-fake-token"
+features:
+  webhooks: true
 ```
 
 ### Step 3: Implement Server
 
 **services/{service_name}/server/main.py:**
 
-```python
-import os
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+Start by copying the inlined state management classes from an existing service. Open `services/github/server/main.py` and copy everything from the top through the end of `WebhookSimulator`. This includes:
 
-app = FastAPI()
+1. Constants: `NAMESPACE_HEADER`, `DEFAULT_NAMESPACE`
+2. `StateOverlay` class (~120 lines)
+3. `NamespaceRouter` class (~50 lines)
+4. `WebhookDelivery` dataclass + `WebhookSimulator` class (~120 lines)
+
+Then add your service-specific code:
+
+```python
+# --- After inlined SDK classes ---
+
+from fastapi import FastAPI, Request, Query
+from fastapi.responses import JSONResponse
 
 # State
-state = {...}
-counters = {...}
+router = NamespaceRouter()
+webhook_sim = WebhookSimulator(max_retries=3, retry_delays=[0.5, 2.0, 10.0])
 
-# REQUIRED: /_doubleagent endpoints
+def get_namespace(request: Request) -> str:
+    return request.headers.get(NAMESPACE_HEADER, DEFAULT_NAMESPACE)
+
+def get_state(request: Request) -> StateOverlay:
+    return router.get_state(get_namespace(request))
+
+app = FastAPI(title="{Service Name} API Fake", version="1.0.0")
+
+# REQUIRED: All /_doubleagent control plane endpoints
 @app.get("/_doubleagent/health")
 async def health():
     return {"status": "healthy"}
 
 @app.post("/_doubleagent/reset")
-async def reset():
-    # Reset all state
-    return {"status": "ok"}
+async def reset(request: Request, hard: bool = Query(default=False)):
+    ns = get_namespace(request)
+    router.reset_namespace(ns, hard=hard)
+    webhook_sim.clear()
+    return {"status": "ok", "reset_mode": "hard" if hard else "baseline", "namespace": ns}
 
 @app.post("/_doubleagent/seed")
-async def seed(data: dict):
-    # Seed from data
-    return {"status": "ok", "seeded": {}}
+async def seed(request: Request, data: SeedData):
+    state = get_state(request)
+    ns = get_namespace(request)
+    seeded = {}
+    # ... seed each resource type ...
+    return {"status": "ok", "seeded": seeded, "namespace": ns}
 
-# API endpoints
-# ... implement based on API docs ...
+@app.post("/_doubleagent/bootstrap")
+async def bootstrap(data: BootstrapData):
+    baseline = {}
+    # ... build baseline dict from data ...
+    router.load_baseline(baseline)
+    counts = {k: len(v) for k, v in baseline.items()}
+    return {"status": "ok", "loaded": counts}
+
+@app.get("/_doubleagent/info")
+async def info(request: Request):
+    state = get_state(request)
+    return {"name": "{service_name}", "version": "1.0",
+            "namespace": get_namespace(request), "state": state.stats()}
+
+@app.get("/_doubleagent/webhooks")
+async def list_webhook_deliveries(request: Request, event_type: str = None, limit: int = 100):
+    ns = get_namespace(request)
+    return webhook_sim.get_deliveries(namespace=ns, event_type=event_type, limit=limit)
+
+@app.get("/_doubleagent/namespaces")
+async def list_namespaces():
+    return router.list_namespaces()
+
+# API endpoints — implement based on API docs
+# All endpoints use get_state(request) for namespace-isolated state access
 
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8080))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 ```
 
 **services/{service_name}/server/pyproject.toml:**
@@ -106,7 +147,7 @@ if __name__ == "__main__":
 [project]
 name = "{service_name}-fake"
 version = "1.0.0"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn>=0.32.0",
@@ -115,12 +156,11 @@ dependencies = [
 ]
 ```
 
+**Important:** Do NOT add `doubleagent-sdk` as a dependency. All state management classes are inlined.
+
 ### Step 4: Write Contract Tests
 
 Contract tests use the official SDK to verify the fake works correctly.
-If the official SDK can parse responses without errors, the fake is compatible.
-
-The CLI starts the service automatically before running tests, setting `DOUBLEAGENT_{SERVICE}_URL` as an environment variable.
 
 **services/{service_name}/contracts/conftest.py:**
 ```python
@@ -137,17 +177,49 @@ def client() -> Client:
 
 @pytest.fixture(autouse=True)
 def reset_fake():
-    httpx.post(f"{SERVICE_URL}/_doubleagent/reset")
+    httpx.post(f"{SERVICE_URL}/_doubleagent/reset", params={"hard": "true"})
     yield
 ```
 
 **services/{service_name}/contracts/test_{resource}.py:**
 ```python
-class Test{Resource}:
+class Test{Resource}CRUD:
     def test_create(self, client):
-        # Use official SDK to test
         result = client.create_{resource}(...)
         assert result.id is not None
+
+    def test_list(self, client):
+        # Create some items, then list
+        ...
+
+    def test_update(self, client):
+        ...
+
+    def test_delete(self, client):
+        ...
+```
+
+**services/{service_name}/contracts/test_namespaces.py:**
+```python
+class TestNamespaceIsolation:
+    def test_mutations_isolated(self, base_url):
+        headers_a = {"X-DoubleAgent-Namespace": "ns-a", ...}
+        headers_b = {"X-DoubleAgent-Namespace": "ns-b", ...}
+        # Create in ns-a, verify not visible in ns-b
+```
+
+**services/{service_name}/contracts/test_snapshots.py:**
+```python
+class TestBootstrapAndCOW:
+    def test_bootstrap_loads_baseline(self, client):
+        # POST /_doubleagent/bootstrap with snapshot data
+        # Verify data visible via SDK
+
+    def test_reset_restores_baseline(self, client):
+        # Bootstrap → mutate → reset → verify baseline restored
+
+    def test_hard_reset_clears_everything(self, client):
+        # Bootstrap → hard reset → verify everything gone
 ```
 
 **services/{service_name}/contracts/pyproject.toml:**
@@ -155,7 +227,7 @@ class Test{Resource}:
 [project]
 name = "{service_name}-contracts"
 version = "1.0.0"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "{official_sdk_package}",
     "pytest>=8.0.0",
@@ -163,20 +235,38 @@ dependencies = [
 ]
 ```
 
-### Step 5: Test
+### Step 5: Create Fixtures
+
+**services/{service_name}/fixtures/startup.yaml:**
+```yaml
+# Tier 2 fixture: "startup" — a small dataset for quick testing.
+# Usage: doubleagent seed {service_name} --fixture startup
+{resource_type}:
+  - name: example-1
+    ...
+  - name: example-2
+    ...
+```
+
+### Step 6: Generate Lock Files
 
 ```bash
-# Install dependencies
-cd services/{service_name}/server && uv sync
-cd services/{service_name}/contracts && uv sync
+cd services/{service_name}/server && uv lock
+cd services/{service_name}/contracts && uv lock
+```
 
+### Step 7: Test
+
+```bash
 # Run contract tests (CLI starts/stops the service automatically)
 doubleagent contract {service_name}
 ```
 
 ## Requirements
 
-- All `/_doubleagent/*` endpoints must be implemented
+- All `/_doubleagent/*` control plane endpoints must be implemented
+- State management classes inlined (not imported from shared library)
 - Contract tests must use the official SDK
-- Tests must pass with official SDK
+- Tests must include namespace isolation and snapshot/COW tests
 - Error responses should match the real API format
+- `pyproject.toml` must NOT depend on `doubleagent-sdk`
