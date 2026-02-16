@@ -7,6 +7,7 @@ Built with FastAPI for async support and automatic OpenAPI generation.
 
 import os
 import asyncio
+import time
 from contextlib import asynccontextmanager
 from typing import Any, Optional
 
@@ -23,12 +24,13 @@ def get_base_url(request: Request) -> str:
 # State
 # =============================================================================
 
-state: dict[str, dict] = {
+state: dict[str, Any] = {
     "users": {},
     "repos": {},
     "issues": {},
     "pulls": {},
     "webhooks": {},  # repo_key -> [webhook]
+    "event_log": [],  # list of dispatched webhook events for debugging
 }
 
 counters: dict[str, int] = {
@@ -59,6 +61,7 @@ def reset_state() -> None:
         "issues": {},
         "pulls": {},
         "webhooks": {},
+        "event_log": [],
     }
     counters = {
         "repo_id": 0,
@@ -126,6 +129,8 @@ class WebhookCreate(BaseModel):
 class SeedData(BaseModel):
     repos: list[dict[str, Any]] = []
     issues: list[dict[str, Any]] = []
+    pulls: list[dict[str, Any]] = []
+    webhooks: list[dict[str, Any]] = []
 
 
 # =============================================================================
@@ -203,6 +208,45 @@ async def seed(data: SeedData):
             }
         seeded["issues"] = len(data.issues)
     
+    if data.pulls:
+        for p in data.pulls:
+            pull_id = next_id("pull_id")
+            repo_key = f"{p['owner']}/{p['repo']}"
+            number = p.get("number", pull_id)
+            state["pulls"][pull_id] = {
+                "id": pull_id,
+                "number": number,
+                "title": p["title"],
+                "body": p.get("body", ""),
+                "state": p.get("state", "open"),
+                "head": {"ref": p.get("head", "feature"), "sha": "abc123"},
+                "base": {"ref": p.get("base", "main"), "sha": "def456"},
+                "repo_key": repo_key,
+                "user": {"login": p.get("user", "doubleagent"), "id": 1, "type": "User"},
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z",
+                "merged": p.get("merged", False),
+                "mergeable": True,
+                "html_url": f"https://github.com/{repo_key}/pull/{number}",
+            }
+        seeded["pulls"] = len(data.pulls)
+    
+    if data.webhooks:
+        for w in data.webhooks:
+            repo_key = f"{w['owner']}/{w['repo']}"
+            webhook_id = next_id("webhook_id")
+            hook = {
+                "id": webhook_id,
+                "url": w["url"],
+                "events": w.get("events", ["*"]),
+                "active": w.get("active", True),
+                "config": {"url": w["url"], "content_type": "json"},
+            }
+            if repo_key not in state["webhooks"]:
+                state["webhooks"][repo_key] = []
+            state["webhooks"][repo_key].append(hook)
+        seeded["webhooks"] = len(data.webhooks)
+    
     return {"status": "ok", "seeded": seeded}
 
 
@@ -218,6 +262,29 @@ async def info():
             "pulls": len(state["pulls"]),
         }
     }
+
+
+@app.get("/_doubleagent/events")
+async def get_events(limit: int = Query(default=50, le=500)):
+    """
+    Get webhook event log for debugging.
+    
+    Returns a list of all webhook dispatch attempts with their status.
+    Useful for verifying webhooks were sent and diagnosing delivery issues.
+    """
+    events = state["event_log"][-limit:]
+    return {
+        "total": len(state["event_log"]),
+        "returned": len(events),
+        "events": events,
+    }
+
+
+@app.delete("/_doubleagent/events")
+async def clear_events():
+    """Clear the event log."""
+    state["event_log"] = []
+    return {"status": "ok"}
 
 
 # =============================================================================
@@ -618,14 +685,25 @@ async def dispatch_webhook(owner: str, repo: str, event_type: str, payload: dict
             continue
         
         # Fire in background task
-        asyncio.create_task(_send_webhook(hook["url"], event_type, payload))
+        asyncio.create_task(_send_webhook(hook["url"], event_type, payload, key, hook["id"]))
 
 
-async def _send_webhook(url: str, event_type: str, payload: dict) -> None:
-    """Send webhook (runs as background task)."""
+async def _send_webhook(url: str, event_type: str, payload: dict, repo_key: str, hook_id: int) -> None:
+    """Send webhook (runs as background task) and log the result."""
+    event_record = {
+        "timestamp": time.time(),
+        "repo": repo_key,
+        "hook_id": hook_id,
+        "event_type": event_type,
+        "url": url,
+        "status": "pending",
+        "response_code": None,
+        "error": None,
+    }
+    
     try:
         async with httpx.AsyncClient() as client:
-            await client.post(
+            resp = await client.post(
                 url,
                 json=payload,
                 headers={
@@ -634,8 +712,24 @@ async def _send_webhook(url: str, event_type: str, payload: dict) -> None:
                 },
                 timeout=5.0,
             )
-    except Exception:
-        pass  # Webhook delivery is best-effort
+            event_record["status"] = "delivered"
+            event_record["response_code"] = resp.status_code
+    except httpx.TimeoutException:
+        event_record["status"] = "timeout"
+        event_record["error"] = "Request timed out after 5s"
+    except httpx.ConnectError as e:
+        event_record["status"] = "connection_failed"
+        event_record["error"] = f"Connection failed: {str(e)}"
+    except Exception as e:
+        event_record["status"] = "error"
+        event_record["error"] = str(e)
+    
+    # Append to event log
+    state["event_log"].append(event_record)
+    
+    # Keep log bounded (max 1000 events)
+    if len(state["event_log"]) > 1000:
+        state["event_log"] = state["event_log"][-1000:]
 
 
 # =============================================================================
