@@ -7,19 +7,23 @@ use std::path::PathBuf;
 /// Resolve the seed data file path from args.
 ///
 /// Priority: --fixture (resolves via service fixtures dir) > --file (explicit path).
-fn resolve_seed_file(
-    args: &SeedArgs,
-    config: &Config,
-) -> anyhow::Result<PathBuf> {
+fn resolve_seed_file(args: &SeedArgs, config: &Config) -> anyhow::Result<PathBuf> {
     if let Some(ref fixture_name) = args.fixture {
         // Resolve fixture from the service's fixtures/ directory
-        let registry = ServiceRegistry::new(&config.services_dir, &config.repo_url, &config.branch)?;
+        let registry =
+            ServiceRegistry::new(&config.services_dir, &config.repo_url, &config.branch)?;
         let service = registry.get(&args.service)?;
-        let fixture_path = service.path.join("fixtures").join(format!("{}.yaml", fixture_name));
+        let fixture_path = service
+            .path
+            .join("fixtures")
+            .join(format!("{}.yaml", fixture_name));
 
         if !fixture_path.exists() {
             // Try .yml extension
-            let yml_path = service.path.join("fixtures").join(format!("{}.yml", fixture_name));
+            let yml_path = service
+                .path
+                .join("fixtures")
+                .join(format!("{}.yml", fixture_name));
             if yml_path.exists() {
                 return Ok(yml_path);
             }
