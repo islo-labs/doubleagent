@@ -10,8 +10,4 @@ dependencies = [
     "pydantic>=2.0.0",
     "pyjwt[crypto]>=2.8.0",
     "cryptography>=42.0.0",
-    "doubleagent-sdk",
 ]
-
-[tool.uv.sources]
-doubleagent-sdk = { path = "../../_lib", editable = true }

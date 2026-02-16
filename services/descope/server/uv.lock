@@ -198,7 +198,6 @@ version = "1.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "cryptography" },
-    { name = "doubleagent-sdk" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "pydantic" },
@@ -209,33 +208,11 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "cryptography", specifier = ">=42.0.0" },
-    { name = "doubleagent-sdk", editable = "../../_lib" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8.0" },
     { name = "uvicorn", specifier = ">=0.32.0" },
-]
-
-[[package]]
-name = "doubleagent-sdk"
-version = "0.1.0"
-source = { editable = "../../_lib" }
-dependencies = [
-    { name = "httpx" },
-    { name = "pydantic" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "httpx", specifier = ">=0.27" },
-    { name = "pydantic", specifier = ">=2.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "anyio", extras = ["trio"], specifier = ">=4.0" },
-    { name = "pytest", specifier = ">=8.0" },
 ]
 
 [[package]]

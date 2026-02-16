@@ -14,24 +14,352 @@ Descope API quirks vs Auth0:
 - User IDs are Descope-generated (U...) not provider-prefixed
 """
 
+import asyncio
 import base64
+import copy
+import hashlib
+import hmac
 import json
 import os
 import time
 import uuid
 from contextlib import asynccontextmanager
-from typing import Any, Optional
+from dataclasses import dataclass, field
+from ipaddress import ip_address
+from typing import Any, Callable, Optional
+from urllib.parse import urlparse
 
+import httpx
 import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import FastAPI, Header, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from starlette.responses import Response
 
-from doubleagent_sdk import NamespaceRouter, StateOverlay, WebhookSimulator
-from doubleagent_sdk.namespace import DEFAULT_NAMESPACE, NAMESPACE_HEADER
+# =============================================================================
+# Namespace constants
+# =============================================================================
+
+NAMESPACE_HEADER = "X-DoubleAgent-Namespace"
+DEFAULT_NAMESPACE = "default"
+
+
+# =============================================================================
+# Copy-on-write state overlay
+# =============================================================================
+
+class StateOverlay:
+    """Copy-on-write state: reads fall through to baseline, writes go to overlay."""
+
+    def __init__(self, baseline: dict[str, dict[str, Any]] | None = None) -> None:
+        self._baseline: dict[str, dict[str, Any]] = baseline or {}
+        self._overlay: dict[str, dict[str, Any]] = {}
+        self._tombstones: set[str] = set()
+        self._counters: dict[str, int] = {}
+
+    def next_id(self, resource_type: str) -> int:
+        if resource_type not in self._counters:
+            max_id = 0
+            for store in (self._baseline, self._overlay):
+                for rid in store.get(resource_type, {}):
+                    try:
+                        max_id = max(max_id, int(rid))
+                    except (ValueError, TypeError):
+                        pass
+            self._counters[resource_type] = max_id
+        self._counters[resource_type] += 1
+        return self._counters[resource_type]
+
+    def get(self, resource_type: str, resource_id: str) -> dict[str, Any] | None:
+        key = f"{resource_type}:{resource_id}"
+        if key in self._tombstones:
+            return None
+        obj = self._overlay.get(resource_type, {}).get(resource_id)
+        if obj is not None:
+            return obj
+        baseline_obj = self._baseline.get(resource_type, {}).get(resource_id)
+        if baseline_obj is not None:
+            return copy.deepcopy(baseline_obj)
+        return None
+
+    def put(self, resource_type: str, resource_id: str, obj: dict[str, Any]) -> None:
+        self._overlay.setdefault(resource_type, {})[resource_id] = obj
+        self._tombstones.discard(f"{resource_type}:{resource_id}")
+
+    def delete(self, resource_type: str, resource_id: str) -> bool:
+        key = f"{resource_type}:{resource_id}"
+        existed = self.get(resource_type, resource_id) is not None
+        self._overlay.get(resource_type, {}).pop(resource_id, None)
+        self._tombstones.add(key)
+        return existed
+
+    def list_all(
+        self,
+        resource_type: str,
+        filter_fn: Callable[[dict[str, Any]], bool] | None = None,
+    ) -> list[dict[str, Any]]:
+        merged: dict[str, Any] = {
+            k: copy.deepcopy(v)
+            for k, v in self._baseline.get(resource_type, {}).items()
+        }
+        merged.update(self._overlay.get(resource_type, {}))
+        items = [
+            v
+            for k, v in merged.items()
+            if f"{resource_type}:{k}" not in self._tombstones
+        ]
+        if filter_fn:
+            items = [i for i in items if filter_fn(i)]
+        return items
+
+    def count(self, resource_type: str) -> int:
+        return len(self.list_all(resource_type))
+
+    def reset(self) -> None:
+        self._overlay.clear()
+        self._tombstones.clear()
+        self._counters.clear()
+
+    def reset_hard(self) -> None:
+        self._baseline.clear()
+        self._overlay.clear()
+        self._tombstones.clear()
+        self._counters.clear()
+
+    def load_baseline(self, data: dict[str, dict[str, Any]]) -> None:
+        self._baseline = data
+        self._overlay.clear()
+        self._tombstones.clear()
+        self._counters.clear()
+
+    def seed(self, data: dict[str, dict[str, Any]]) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for rtype, resources in data.items():
+            for rid, obj in resources.items():
+                self.put(rtype, rid, obj)
+            counts[rtype] = len(resources)
+        return counts
+
+    def resource_types(self) -> set[str]:
+        return set(self._baseline.keys()) | set(self._overlay.keys())
+
+    def stats(self) -> dict[str, Any]:
+        return {
+            "baseline_types": {k: len(v) for k, v in self._baseline.items()},
+            "overlay_types": {k: len(v) for k, v in self._overlay.items()},
+            "tombstone_count": len(self._tombstones),
+            "has_baseline": bool(self._baseline),
+        }
+
+
+# =============================================================================
+# Namespace router
+# =============================================================================
+
+class NamespaceRouter:
+    """Manages isolated StateOverlay instances keyed by namespace."""
+
+    def __init__(self, baseline: dict[str, dict[str, Any]] | None = None) -> None:
+        self._baseline: dict[str, dict[str, Any]] = baseline or {}
+        self._namespaces: dict[str, StateOverlay] = {}
+
+    def get_state(self, namespace: str | None = None) -> StateOverlay:
+        ns = namespace or DEFAULT_NAMESPACE
+        if ns not in self._namespaces:
+            self._namespaces[ns] = StateOverlay(baseline=self._baseline)
+        return self._namespaces[ns]
+
+    def load_baseline(self, data: dict[str, dict[str, Any]]) -> None:
+        self._baseline = data
+        for overlay in self._namespaces.values():
+            overlay.load_baseline(data)
+
+    def reset_namespace(self, namespace: str | None = None, *, hard: bool = False) -> None:
+        ns = namespace or DEFAULT_NAMESPACE
+        if ns in self._namespaces:
+            if hard:
+                self._namespaces[ns].reset_hard()
+            else:
+                self._namespaces[ns].reset()
+
+    def reset_all(self, *, hard: bool = False) -> None:
+        for ns in list(self._namespaces):
+            self.reset_namespace(ns, hard=hard)
+
+    def list_namespaces(self) -> list[dict[str, Any]]:
+        result = []
+        for ns, overlay in self._namespaces.items():
+            stats = overlay.stats()
+            result.append({"namespace": ns, **stats})
+        return result
+
+    def delete_namespace(self, namespace: str) -> bool:
+        return self._namespaces.pop(namespace, None) is not None
+
+
+# =============================================================================
+# Webhook simulator
+# =============================================================================
+
+@dataclass
+class WebhookDelivery:
+    """Record of a single webhook delivery attempt."""
+
+    id: str
+    event_type: str
+    payload: dict[str, Any]
+    target_url: str
+    namespace: str
+    status: str = "pending"
+    attempts: int = 0
+    last_attempt_at: float | None = None
+    response_code: int | None = None
+    error: str | None = None
+    created_at: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "event_type": self.event_type,
+            "target_url": self.target_url,
+            "namespace": self.namespace,
+            "status": self.status,
+            "attempts": self.attempts,
+            "last_attempt_at": self.last_attempt_at,
+            "response_code": self.response_code,
+            "error": self.error,
+            "created_at": self.created_at,
+        }
+
+
+_DEFAULT_ALLOWED_HOSTS = {"localhost", "127.0.0.1", "::1", "host.docker.internal"}
+
+
+def _is_target_allowed(url: str, allowed_hosts: set[str]) -> bool:
+    parsed = urlparse(url)
+    hostname = parsed.hostname or ""
+    if hostname in allowed_hosts:
+        return True
+    try:
+        addr = ip_address(hostname)
+        return addr.is_loopback or addr.is_private
+    except ValueError:
+        return False
+
+
+def _compute_signature(payload: dict[str, Any], secret: str | None) -> str | None:
+    if not secret:
+        return None
+    body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
+    sig = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    return f"sha256={sig}"
+
+
+class WebhookSimulator:
+    """Delivers webhooks to localhost endpoints with retry and logging."""
+
+    def __init__(
+        self,
+        max_retries: int = 3,
+        retry_delays: list[float] | None = None,
+        allowed_hosts: set[str] | None = None,
+        timeout: float = 5.0,
+    ) -> None:
+        self.max_retries = max_retries
+        self.retry_delays = retry_delays or [1.0, 5.0, 30.0]
+        self.allowed_hosts = allowed_hosts or _DEFAULT_ALLOWED_HOSTS
+        self.timeout = timeout
+        self._deliveries: list[WebhookDelivery] = []
+
+    async def deliver(
+        self,
+        target_url: str,
+        event_type: str,
+        payload: dict[str, Any],
+        *,
+        secret: str | None = None,
+        namespace: str = "default",
+        extra_headers: dict[str, str] | None = None,
+    ) -> WebhookDelivery:
+        delivery = WebhookDelivery(
+            id=uuid.uuid4().hex[:16],
+            event_type=event_type,
+            payload=payload,
+            target_url=target_url,
+            namespace=namespace,
+        )
+        self._deliveries.append(delivery)
+
+        if not _is_target_allowed(target_url, self.allowed_hosts):
+            delivery.status = "failed"
+            delivery.error = f"target host not in allowlist: {urlparse(target_url).hostname}"
+            return delivery
+
+        asyncio.create_task(
+            self._deliver_with_retry(delivery, secret=secret, extra_headers=extra_headers)
+        )
+        return delivery
+
+    def get_deliveries(
+        self,
+        *,
+        namespace: str | None = None,
+        event_type: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        results = self._deliveries
+        if namespace:
+            results = [d for d in results if d.namespace == namespace]
+        if event_type:
+            results = [d for d in results if d.event_type == event_type]
+        return [d.to_dict() for d in reversed(results[-limit:])]
+
+    def clear(self) -> None:
+        self._deliveries.clear()
+
+    async def _deliver_with_retry(
+        self,
+        delivery: WebhookDelivery,
+        *,
+        secret: str | None = None,
+        extra_headers: dict[str, str] | None = None,
+    ) -> None:
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "X-DoubleAgent-Delivery": delivery.id,
+            "X-DoubleAgent-Namespace": delivery.namespace,
+        }
+        sig = _compute_signature(delivery.payload, secret)
+        if sig:
+            headers["X-Hub-Signature-256"] = sig
+        if extra_headers:
+            headers.update(extra_headers)
+
+        for attempt in range(self.max_retries):
+            delivery.attempts = attempt + 1
+            delivery.last_attempt_at = time.time()
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    resp = await client.post(
+                        delivery.target_url,
+                        json=delivery.payload,
+                        headers=headers,
+                    )
+                delivery.response_code = resp.status_code
+                if 200 <= resp.status_code < 300:
+                    delivery.status = "delivered"
+                    return
+            except Exception as exc:
+                delivery.error = str(exc)
+
+            if attempt < self.max_retries - 1:
+                delay = (
+                    self.retry_delays[attempt]
+                    if attempt < len(self.retry_delays)
+                    else self.retry_delays[-1]
+                )
+                await asyncio.sleep(delay)
 
 # =============================================================================
 # RSA key pair (generated once at startup)
