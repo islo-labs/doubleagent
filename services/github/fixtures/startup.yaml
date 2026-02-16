@@ -1,0 +1,60 @@
+# Tier 2 fixture: "startup" — a small startup org with typical repo structure.
+# Usage: doubleagent seed github --fixture startup
+# No credentials needed. Ships with DoubleAgent.
+
+repos:
+  - owner: acme-corp
+    name: backend-api
+    description: "Core REST API service"
+    private: true
+    default_branch: main
+  - owner: acme-corp
+    name: frontend-web
+    description: "React web application"
+    private: true
+    default_branch: main
+  - owner: acme-corp
+    name: infrastructure
+    description: "Terraform and deployment configs"
+    private: true
+    default_branch: main
+  - owner: acme-corp
+    name: docs
+    description: "Public documentation site"
+    private: false
+    default_branch: main
+  - owner: acme-corp
+    name: sdk-python
+    description: "Official Python SDK"
+    private: false
+    default_branch: main
+
+issues:
+  - repo: acme-corp/backend-api
+    title: "Add pagination to /users endpoint"
+    body: "Currently returns all users. Need cursor-based pagination for production scale."
+    state: open
+  - repo: acme-corp/backend-api
+    title: "Rate limiting middleware"
+    body: "Implement token bucket rate limiter. 100 req/min per API key."
+    state: open
+  - repo: acme-corp/backend-api
+    title: "Fix N+1 query in orders endpoint"
+    body: "The GET /orders endpoint issues a separate query for each order item."
+    state: closed
+  - repo: acme-corp/frontend-web
+    title: "Dark mode support"
+    body: "Add dark mode toggle in user preferences."
+    state: open
+  - repo: acme-corp/frontend-web
+    title: "Accessibility audit findings"
+    body: "Missing ARIA labels on navigation. Color contrast issues on buttons."
+    state: open
+  - repo: acme-corp/infrastructure
+    title: "Migrate to new AWS region"
+    body: "Move production from us-east-1 to us-west-2 for lower latency."
+    state: open
+  - repo: acme-corp/docs
+    title: "Update API reference for v2"
+    body: "New endpoints added in v2 need documentation."
+    state: open

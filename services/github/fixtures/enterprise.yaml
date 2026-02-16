@@ -1,0 +1,103 @@
+# Tier 2 fixture: "enterprise" — a larger org with teams, many repos, and mixed state.
+# Usage: doubleagent seed github --fixture enterprise
+# No credentials needed. Ships with DoubleAgent.
+
+repos:
+  - owner: megacorp
+    name: platform-core
+    description: "Core platform services"
+    private: true
+  - owner: megacorp
+    name: platform-auth
+    description: "Authentication and authorization service"
+    private: true
+  - owner: megacorp
+    name: platform-gateway
+    description: "API gateway and routing"
+    private: true
+  - owner: megacorp
+    name: data-pipeline
+    description: "ETL and data processing pipelines"
+    private: true
+  - owner: megacorp
+    name: ml-models
+    description: "Machine learning model training and serving"
+    private: true
+  - owner: megacorp
+    name: mobile-ios
+    description: "iOS application"
+    private: true
+  - owner: megacorp
+    name: mobile-android
+    description: "Android application"
+    private: true
+  - owner: megacorp
+    name: web-dashboard
+    description: "Admin dashboard web application"
+    private: true
+  - owner: megacorp
+    name: developer-portal
+    description: "Public developer portal and API docs"
+    private: false
+  - owner: megacorp
+    name: oss-toolkit
+    description: "Open source utility library"
+    private: false
+  - owner: megacorp
+    name: infrastructure
+    description: "Terraform modules and deployment automation"
+    private: true
+  - owner: megacorp
+    name: security-scanner
+    description: "Internal SAST/DAST scanning tool"
+    private: true
+
+issues:
+  - repo: megacorp/platform-core
+    title: "Implement circuit breaker for downstream services"
+    body: "Use resilience4j pattern. Threshold: 5 failures in 60s."
+    state: open
+  - repo: megacorp/platform-core
+    title: "Upgrade to Java 21"
+    body: "Migrate from Java 17 to 21 for virtual threads support."
+    state: open
+  - repo: megacorp/platform-core
+    title: "Database connection pool exhaustion under load"
+    body: "Connection pool maxes out at 50 concurrent requests. Increase or add queuing."
+    state: closed
+  - repo: megacorp/platform-auth
+    title: "Add SAML SSO support"
+    body: "Enterprise customers need SAML 2.0 integration for their IdP."
+    state: open
+  - repo: megacorp/platform-auth
+    title: "MFA bypass vulnerability"
+    body: "CRITICAL: MFA can be bypassed by replaying session token."
+    state: closed
+  - repo: megacorp/platform-gateway
+    title: "Add request/response logging"
+    body: "Structured logging for all API requests. Must redact PII fields."
+    state: open
+  - repo: megacorp/data-pipeline
+    title: "Kafka consumer lag alert"
+    body: "Set up alerting when consumer lag exceeds 10k messages."
+    state: open
+  - repo: megacorp/data-pipeline
+    title: "Backfill historical data for new analytics table"
+    body: "Need to backfill 6 months of events into the new partitioned table."
+    state: open
+  - repo: megacorp/ml-models
+    title: "Model drift detection"
+    body: "Implement statistical tests to detect feature drift in production."
+    state: open
+  - repo: megacorp/web-dashboard
+    title: "Dashboard loading time > 5s"
+    body: "Initial load takes 5+ seconds. Profile and optimize bundle size."
+    state: open
+  - repo: megacorp/mobile-ios
+    title: "Push notification not delivered on iOS 18"
+    body: "APNs token format changed in iOS 18. Update registration flow."
+    state: open
+  - repo: megacorp/developer-portal
+    title: "Add interactive API explorer"
+    body: "Embed Swagger UI or similar for try-it-now experience."
+    state: open
