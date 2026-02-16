@@ -3,8 +3,6 @@
 import httpx
 import uuid
 
-SERVICE_URL = __import__("os").environ["DOUBLEAGENT_DESCOPE_URL"]
-
 
 class TestUserCRUD:
     def test_create_user(self, base_url, mgmt_headers):

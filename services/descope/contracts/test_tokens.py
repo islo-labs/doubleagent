@@ -4,8 +4,6 @@ import httpx
 import jwt
 import uuid
 
-SERVICE_URL = __import__("os").environ["DOUBLEAGENT_DESCOPE_URL"]
-
 
 class TestAccessKeyExchange:
     def test_exchange_access_key(self, base_url, mgmt_headers):

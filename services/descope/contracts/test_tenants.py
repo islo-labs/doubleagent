@@ -3,8 +3,6 @@
 import httpx
 import uuid
 
-SERVICE_URL = __import__("os").environ["DOUBLEAGENT_DESCOPE_URL"]
-
 
 class TestTenantCRUD:
     def test_create_tenant(self, base_url, mgmt_headers):
