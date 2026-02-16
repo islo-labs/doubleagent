@@ -21,8 +21,6 @@ supported_flows:
   - Resource Owner Password Credentials (ROPC) flow
   - JWKS-based token verification
   - OpenID Connect discovery
-  - Webhook event delivery
-
 server:
   command: ["uv", "run", "python", "main.py"]
 
@@ -33,5 +31,3 @@ contracts:
 #   DOUBLEAGENT_AUTH0_URL - URL of the running fake service (set automatically)
 #   PORT - Port the service listens on (set automatically)
 
-features:
-  webhooks: true
