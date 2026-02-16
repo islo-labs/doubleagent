@@ -107,7 +107,11 @@ pub struct SeedArgs {
     pub service: String,
 
     /// Path to seed data file (YAML or JSON)
-    pub file: String,
+    pub file: Option<String>,
+
+    /// Name of a fixture in the service's fixtures/ directory (e.g. "startup")
+    #[arg(long)]
+    pub fixture: Option<String>,
 }
 
 #[derive(Parser)]
