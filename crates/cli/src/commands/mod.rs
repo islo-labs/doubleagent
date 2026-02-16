@@ -82,10 +82,6 @@ pub struct StartArgs {
     /// Load a snapshot profile as the baseline state
     #[arg(long)]
     pub snapshot: Option<String>,
-
-    /// Namespace for per-agent isolation
-    #[arg(long)]
-    pub namespace: Option<String>,
 }
 
 #[derive(Parser)]
@@ -111,10 +107,6 @@ pub struct StopArgs {
 pub struct ResetArgs {
     /// Services to reset (empty = all running)
     pub services: Vec<String>,
-
-    /// Reset to empty (ignore snapshot baseline)
-    #[arg(long)]
-    pub hard: bool,
 }
 
 #[derive(Parser)]
@@ -134,10 +126,6 @@ pub struct SeedArgs {
 pub struct ContractArgs {
     /// Service to test
     pub service: String,
-
-    /// Also run read-only contract tests against the real API and diff results
-    #[arg(long)]
-    pub validate_against_real: bool,
 }
 
 #[derive(Parser)]
@@ -157,10 +145,6 @@ pub struct RunArgs {
     /// Load a snapshot profile as the baseline state
     #[arg(long)]
     pub snapshot: Option<String>,
-
-    /// Namespace for per-agent isolation
-    #[arg(long)]
-    pub namespace: Option<String>,
 
     /// Command to run (everything after --)
     #[arg(last = true, required = true)]
