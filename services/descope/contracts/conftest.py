@@ -21,5 +21,5 @@ def mgmt_headers() -> dict:
 
 @pytest.fixture(autouse=True)
 def reset_fake(base_url):
-    httpx.post(f"{base_url}/_doubleagent/reset", params={"hard": "true"})
+    httpx.post(f"{base_url}/_doubleagent/reset")
     yield
