@@ -126,6 +126,10 @@ def test_filter_tasks_by_section(todoist_client: TodoistAPI):
         project_id=project.id
     )
 
+    # Verify round-trip for task creation
+    retrieved_task1 = todoist_client.get_task(task_id=task_section1.id)
+    assert retrieved_task1.section_id == "section1"
+
     # Filter by section 1
     section1_tasks = []
     for page in todoist_client.get_tasks(section_id="section1"):

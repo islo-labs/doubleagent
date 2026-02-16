@@ -19,6 +19,11 @@ def test_quick_add_basic_task(todoist_client: TodoistAPI):
     assert task.labels == []
     assert task.id is not None
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Buy milk"
+    assert retrieved_task.priority == 1
+
 
 def test_quick_add_task_with_project(todoist_client: TodoistAPI):
     """Test quick add with project assignment using #project syntax"""
@@ -32,6 +37,11 @@ def test_quick_add_task_with_project(todoist_client: TodoistAPI):
     assert task.project_id == project.id
     assert "#Shopping" not in task.content
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Buy groceries"
+    assert retrieved_task.project_id == project.id
+
 
 def test_quick_add_task_with_single_label(todoist_client: TodoistAPI):
     """Test quick add with single label using @label syntax"""
@@ -40,6 +50,11 @@ def test_quick_add_task_with_single_label(todoist_client: TodoistAPI):
     assert task.content == "Buy milk"
     assert "groceries" in task.labels
     assert "@groceries" not in task.content
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Buy milk"
+    assert "groceries" in retrieved_task.labels
 
 
 def test_quick_add_task_with_multiple_labels(todoist_client: TodoistAPI):
@@ -52,6 +67,14 @@ def test_quick_add_task_with_multiple_labels(todoist_client: TodoistAPI):
     assert "deadline" in task.labels
     assert len(task.labels) == 3
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Finish report"
+    assert len(retrieved_task.labels) == 3
+    assert "work" in retrieved_task.labels
+    assert "urgent" in retrieved_task.labels
+    assert "deadline" in retrieved_task.labels
+
 
 def test_quick_add_task_with_priority_p1(todoist_client: TodoistAPI):
     """Test quick add with priority level p1"""
@@ -59,6 +82,10 @@ def test_quick_add_task_with_priority_p1(todoist_client: TodoistAPI):
 
     assert task.content == "Regular task"
     assert task.priority == 1
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.priority == 1
 
 
 def test_quick_add_task_with_priority_p2(todoist_client: TodoistAPI):
@@ -68,6 +95,10 @@ def test_quick_add_task_with_priority_p2(todoist_client: TodoistAPI):
     assert task.content == "Medium priority task"
     assert task.priority == 2
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.priority == 2
+
 
 def test_quick_add_task_with_priority_p3(todoist_client: TodoistAPI):
     """Test quick add with priority level p3"""
@@ -76,6 +107,10 @@ def test_quick_add_task_with_priority_p3(todoist_client: TodoistAPI):
     assert task.content == "High priority task"
     assert task.priority == 3
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.priority == 3
+
 
 def test_quick_add_task_with_priority_p4(todoist_client: TodoistAPI):
     """Test quick add with priority level p4"""
@@ -83,6 +118,10 @@ def test_quick_add_task_with_priority_p4(todoist_client: TodoistAPI):
 
     assert task.content == "Urgent task"
     assert task.priority == 4
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.priority == 4
 
 
 def test_quick_add_task_with_due_date_today(todoist_client: TodoistAPI):
@@ -93,6 +132,11 @@ def test_quick_add_task_with_due_date_today(todoist_client: TodoistAPI):
     assert task.due is not None
     assert task.due.string == "today"
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.due is not None
+    assert retrieved_task.due.string == "today"
+
 
 def test_quick_add_task_with_due_date_tomorrow(todoist_client: TodoistAPI):
     """Test quick add with 'tomorrow' due date"""
@@ -102,6 +146,11 @@ def test_quick_add_task_with_due_date_tomorrow(todoist_client: TodoistAPI):
     assert task.due is not None
     assert task.due.string == "tomorrow"
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.due is not None
+    assert retrieved_task.due.string == "tomorrow"
+
 
 def test_quick_add_task_with_due_datetime(todoist_client: TodoistAPI):
     """Test quick add with specific time"""
@@ -110,6 +159,11 @@ def test_quick_add_task_with_due_datetime(todoist_client: TodoistAPI):
     assert task.content == "Meeting"
     assert task.due is not None
     assert "tomorrow at 3pm" in task.due.string
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.due is not None
+    assert "tomorrow at 3pm" in retrieved_task.due.string
 
 
 def test_quick_add_task_with_recurring_pattern(todoist_client: TodoistAPI):
@@ -121,6 +175,13 @@ def test_quick_add_task_with_recurring_pattern(todoist_client: TodoistAPI):
     assert task.due.string == "every Monday"
     assert task.due.is_recurring is True
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Weekly meeting"
+    assert retrieved_task.due is not None
+    assert retrieved_task.due.string == "every Monday"
+    assert retrieved_task.due.is_recurring is True
+
 
 def test_quick_add_task_with_next_pattern(todoist_client: TodoistAPI):
     """Test quick add with 'next' date pattern"""
@@ -130,6 +191,11 @@ def test_quick_add_task_with_next_pattern(todoist_client: TodoistAPI):
     assert task.due is not None
     assert "next Friday" in task.due.string
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.due is not None
+    assert "next Friday" in retrieved_task.due.string
+
 
 def test_quick_add_task_with_assignee(todoist_client: TodoistAPI):
     """Test quick add with assignee (should be parsed but ignored)"""
@@ -137,6 +203,10 @@ def test_quick_add_task_with_assignee(todoist_client: TodoistAPI):
 
     assert task.content == "Delegate task"
     assert "+Alice" not in task.content
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Delegate task"
 
 
 def test_quick_add_task_with_all_features(todoist_client: TodoistAPI):
@@ -156,6 +226,16 @@ def test_quick_add_task_with_all_features(todoist_client: TodoistAPI):
     assert task.due is not None
     assert "tomorrow at 4pm" in task.due.string
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Submit report"
+    assert retrieved_task.project_id == project.id
+    assert "work" in retrieved_task.labels
+    assert "urgent" in retrieved_task.labels
+    assert retrieved_task.priority == 3
+    assert retrieved_task.due is not None
+    assert "tomorrow at 4pm" in retrieved_task.due.string
+
 
 def test_quick_add_task_with_note(todoist_client: TodoistAPI):
     """Test quick add with note/description parameter"""
@@ -167,6 +247,12 @@ def test_quick_add_task_with_note(todoist_client: TodoistAPI):
     assert task.content == "Buy groceries"
     assert task.description == "Don't forget milk, eggs, and bread"
     assert "shopping" in task.labels
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Buy groceries"
+    assert retrieved_task.description == "Don't forget milk, eggs, and bread"
+    assert "shopping" in retrieved_task.labels
 
 
 def test_quick_add_task_appears_in_rest_api(todoist_client: TodoistAPI):
@@ -197,6 +283,15 @@ def test_quick_add_task_multiple_tasks(todoist_client: TodoistAPI):
     assert task2.content == "Second task"
     assert "label1" in task1.labels
     assert "label2" in task2.labels
+
+    # Verify round-trip: read back both tasks to prove persistence
+    retrieved_task1 = todoist_client.get_task(task_id=task1.id)
+    assert retrieved_task1.content == "First task"
+    assert "label1" in retrieved_task1.labels
+
+    retrieved_task2 = todoist_client.get_task(task_id=task2.id)
+    assert retrieved_task2.content == "Second task"
+    assert "label2" in retrieved_task2.labels
 
 
 def test_quick_add_task_without_text_parameter(todoist_client: TodoistAPI):
@@ -237,6 +332,15 @@ def test_quick_add_complex_natural_language(todoist_client: TodoistAPI):
         if test_case.get("is_recurring"):
             assert task.due.is_recurring is True
 
+        # Verify round-trip: read back to prove persistence
+        retrieved_task = todoist_client.get_task(task_id=task.id)
+        assert retrieved_task.content == test_case["content"]
+        if "due_contains" in test_case:
+            assert retrieved_task.due is not None
+            assert test_case["due_contains"] in retrieved_task.due.string
+        if test_case.get("is_recurring"):
+            assert retrieved_task.due.is_recurring is True
+
 
 def test_quick_add_preserves_special_characters(todoist_client: TodoistAPI):
     """Test that special characters in content are preserved"""
@@ -244,6 +348,11 @@ def test_quick_add_preserves_special_characters(todoist_client: TodoistAPI):
 
     assert task.content == "Email subject: Important!"
     assert "work" in task.labels
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Email subject: Important!"
+    assert "work" in retrieved_task.labels
 
 
 def test_quick_add_with_nonexistent_project(todoist_client: TodoistAPI):
@@ -253,6 +362,11 @@ def test_quick_add_with_nonexistent_project(todoist_client: TodoistAPI):
     assert task.content == "Task in fake project"
     # Project ID should be "inbox" when project not found
     assert task.project_id == "inbox"
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Task in fake project"
+    assert retrieved_task.project_id == "inbox"
 
 
 def test_quick_add_case_insensitive_priority(todoist_client: TodoistAPI):
@@ -267,3 +381,7 @@ def test_quick_add_case_insensitive_priority(todoist_client: TodoistAPI):
     for text, expected_priority in test_cases:
         task = todoist_client.add_task_quick(text=text)
         assert task.priority == expected_priority
+
+        # Verify round-trip: read back to prove persistence
+        retrieved_task = todoist_client.get_task(task_id=task.id)
+        assert retrieved_task.priority == expected_priority

@@ -50,9 +50,22 @@ def test_register_webhook(fake_url: str, reset_state):
     data = response.json()
 
     assert "id" in data
+    webhook_id = data["id"]
     assert data["url"] == "https://example.com/webhook"
     assert data["events"] == ["item:added", "item:updated", "item:deleted", "project:added"]
     assert data["user_id"] == "1"
+
+    # Round-trip verification: List webhooks to confirm registration persisted
+    list_response = requests.get(
+        f"{fake_url}/sync/v9/webhooks",
+        headers={"Authorization": "Bearer fake-token"}
+    )
+    assert list_response.status_code == 200
+    webhooks = list_response.json()
+    assert len(webhooks) == 1
+    assert webhooks[0]["id"] == webhook_id
+    assert webhooks[0]["url"] == "https://example.com/webhook"
+    assert webhooks[0]["events"] == ["item:added", "item:updated", "item:deleted", "project:added"]
 
 
 def test_list_webhooks(fake_url: str, reset_state):
@@ -103,6 +116,12 @@ def test_delete_webhook(fake_url: str, reset_state):
     response = requests.post(f"{fake_url}/sync/v9/webhooks", json=webhook_data)
     webhook_id = response.json()["id"]
 
+    # Round-trip verification before delete: Confirm webhook exists
+    list_response_before = requests.get(f"{fake_url}/sync/v9/webhooks")
+    webhooks_before = list_response_before.json()
+    assert len(webhooks_before) == 1
+    assert webhooks_before[0]["id"] == webhook_id
+
     # Delete the webhook
     delete_response = requests.delete(
         f"{fake_url}/sync/v9/webhooks/{webhook_id}",
@@ -111,7 +130,7 @@ def test_delete_webhook(fake_url: str, reset_state):
 
     assert delete_response.status_code == 204
 
-    # Verify it's deleted
+    # Round-trip verification after delete: Confirm webhook is gone
     list_response = requests.get(f"{fake_url}/sync/v9/webhooks")
     webhooks = list_response.json()
     assert len(webhooks) == 0
@@ -136,6 +155,13 @@ def test_webhook_delivery_on_item_added(fake_url: str, todoist_client: TodoistAP
         priority=2,
         labels=["urgent"]
     )
+
+    # Round-trip verification: Read back the task to prove persistence
+    persisted_task = todoist_client.get_task(task_id=task.id)
+    assert persisted_task.id == task.id
+    assert persisted_task.content == "Test webhook task"
+    assert persisted_task.priority == 2
+    assert persisted_task.labels == ["urgent"]
 
     # Check webhook deliveries
     deliveries_response = requests.get(f"{fake_url}/_doubleagent/webhook_deliveries")
@@ -185,6 +211,11 @@ def test_webhook_delivery_on_item_updated(fake_url: str, todoist_client: Todoist
     task = todoist_client.add_task(content="Original content")
     todoist_client.update_task(task_id=task.id, content="Updated content")
 
+    # Round-trip verification: Read back the task to prove update persisted
+    persisted_task = todoist_client.get_task(task_id=task.id)
+    assert persisted_task.id == task.id
+    assert persisted_task.content == "Updated content"
+
     # Check webhook deliveries (should only have item:updated, not item:added)
     deliveries_response = requests.get(f"{fake_url}/_doubleagent/webhook_deliveries")
     deliveries = deliveries_response.json()["deliveries"]
@@ -215,10 +246,25 @@ def test_webhook_delivery_on_item_deleted(fake_url: str, todoist_client: Todoist
     }
     requests.post(f"{fake_url}/sync/v9/webhooks", json=webhook_data)
 
-    # Create and delete a task
+    # Create a task and verify it exists
     task = todoist_client.add_task(content="Task to delete")
     task_id = task.id
+
+    # Round-trip verification before delete: Read back to confirm it was created
+    persisted_task = todoist_client.get_task(task_id=task_id)
+    assert persisted_task.id == task_id
+    assert persisted_task.content == "Task to delete"
+
+    # Delete the task
     todoist_client.delete_task(task_id=task_id)
+
+    # Round-trip verification after delete: Confirm deletion by trying to read
+    try:
+        todoist_client.get_task(task_id=task_id)
+        assert False, "Task should have been deleted but still exists"
+    except Exception:
+        # Expected: task should not be found after deletion
+        pass
 
     # Check webhook deliveries
     deliveries_response = requests.get(f"{fake_url}/_doubleagent/webhook_deliveries")
@@ -257,6 +303,12 @@ def test_webhook_delivery_on_project_added(fake_url: str, todoist_client: Todois
         color="blue"
     )
 
+    # Round-trip verification: Read back the project to prove persistence
+    persisted_project = todoist_client.get_project(project_id=project.id)
+    assert persisted_project.id == project.id
+    assert persisted_project.name == "Webhook Test Project"
+    assert persisted_project.color == "blue"
+
     # Check webhook deliveries
     deliveries_response = requests.get(f"{fake_url}/_doubleagent/webhook_deliveries")
     deliveries = deliveries_response.json()["deliveries"]
@@ -287,10 +339,29 @@ def test_webhook_multiple_events_subscription(fake_url: str, todoist_client: Tod
     }
     requests.post(f"{fake_url}/sync/v9/webhooks", json=webhook_data)
 
-    # Perform multiple operations
+    # Perform multiple operations with round-trip verification
     task = todoist_client.add_task(content="Multi-event task")
+
+    # Verify task creation persisted
+    persisted_task = todoist_client.get_task(task_id=task.id)
+    assert persisted_task.content == "Multi-event task"
+
+    # Update the task
     todoist_client.update_task(task_id=task.id, content="Updated task")
+
+    # Verify update persisted
+    updated_task = todoist_client.get_task(task_id=task.id)
+    assert updated_task.content == "Updated task"
+
+    # Delete the task
     todoist_client.delete_task(task_id=task.id)
+
+    # Verify deletion (task should not be found)
+    try:
+        todoist_client.get_task(task_id=task.id)
+        assert False, "Task should have been deleted"
+    except Exception:
+        pass  # Expected
 
     # Check webhook deliveries
     deliveries_response = requests.get(f"{fake_url}/_doubleagent/webhook_deliveries")
@@ -324,10 +395,29 @@ def test_webhook_event_filtering(fake_url: str, todoist_client: TodoistAPI):
     }
     requests.post(f"{fake_url}/sync/v9/webhooks", json=webhook_data)
 
-    # Perform multiple operations
+    # Perform multiple operations with round-trip verification
     task = todoist_client.add_task(content="Filter test task")
+
+    # Verify task creation persisted
+    persisted_task = todoist_client.get_task(task_id=task.id)
+    assert persisted_task.content == "Filter test task"
+
+    # Update the task
     todoist_client.update_task(task_id=task.id, content="Updated")
+
+    # Verify update persisted
+    updated_task = todoist_client.get_task(task_id=task.id)
+    assert updated_task.content == "Updated"
+
+    # Delete the task
     todoist_client.delete_task(task_id=task.id)
+
+    # Verify deletion
+    try:
+        todoist_client.get_task(task_id=task.id)
+        assert False, "Task should have been deleted"
+    except Exception:
+        pass  # Expected
 
     # Check webhook deliveries - should only have item:added
     deliveries_response = requests.get(f"{fake_url}/_doubleagent/webhook_deliveries")
@@ -402,6 +492,10 @@ def test_webhook_payload_structure(fake_url: str, todoist_client: TodoistAPI):
 
     # Create a task
     task = todoist_client.add_task(content="Structure test")
+
+    # Round-trip verification: Read back the task to prove persistence
+    persisted_task = todoist_client.get_task(task_id=task.id)
+    assert persisted_task.content == "Structure test"
 
     # Check webhook delivery structure
     deliveries_response = requests.get(f"{fake_url}/_doubleagent/webhook_deliveries")

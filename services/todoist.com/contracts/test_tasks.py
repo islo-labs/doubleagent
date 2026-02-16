@@ -50,18 +50,30 @@ def test_create_task_with_priority(todoist_client: TodoistAPI):
     # P4 - Highest priority
     task_p4 = todoist_client.add_task(content="Urgent task", priority=4)
     assert task_p4.priority == 4
+    # Verify round-trip
+    retrieved_p4 = todoist_client.get_task(task_id=task_p4.id)
+    assert retrieved_p4.priority == 4
 
     # P3
     task_p3 = todoist_client.add_task(content="High priority task", priority=3)
     assert task_p3.priority == 3
+    # Verify round-trip
+    retrieved_p3 = todoist_client.get_task(task_id=task_p3.id)
+    assert retrieved_p3.priority == 3
 
     # P2
     task_p2 = todoist_client.add_task(content="Medium priority task", priority=2)
     assert task_p2.priority == 2
+    # Verify round-trip
+    retrieved_p2 = todoist_client.get_task(task_id=task_p2.id)
+    assert retrieved_p2.priority == 2
 
     # P1 - Default priority
     task_p1 = todoist_client.add_task(content="Normal task", priority=1)
     assert task_p1.priority == 1
+    # Verify round-trip
+    retrieved_p1 = todoist_client.get_task(task_id=task_p1.id)
+    assert retrieved_p1.priority == 1
 
 
 def test_create_task_with_labels(todoist_client: TodoistAPI):
@@ -72,6 +84,10 @@ def test_create_task_with_labels(todoist_client: TodoistAPI):
 
     assert task is not None
     assert task.labels == ["work", "urgent", "documentation"]
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.labels == ["work", "urgent", "documentation"]
 
 
 def test_create_task_with_description(todoist_client: TodoistAPI):
@@ -85,6 +101,10 @@ def test_create_task_with_description(todoist_client: TodoistAPI):
     assert task.content == "Plan vacation"
     assert task.description == "Research destinations and book flights for summer trip"
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.description == "Research destinations and book flights for summer trip"
+
 
 def test_create_task_with_due_date(todoist_client: TodoistAPI):
     """Test creating a task with a specific due date"""
@@ -94,6 +114,11 @@ def test_create_task_with_due_date(todoist_client: TodoistAPI):
     assert task is not None
     assert task.due is not None
     assert task.due.date == due_date
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.due is not None
+    assert retrieved_task.due.date == due_date
 
 
 def test_create_task_with_due_datetime(todoist_client: TodoistAPI):
@@ -106,6 +131,11 @@ def test_create_task_with_due_datetime(todoist_client: TodoistAPI):
     # The due.date field contains datetime for datetime tasks
     assert task.due.date == due_datetime
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.due is not None
+    assert retrieved_task.due.date == due_datetime
+
 
 def test_create_task_with_duration(todoist_client: TodoistAPI):
     """Test creating a task with duration"""
@@ -117,6 +147,12 @@ def test_create_task_with_duration(todoist_client: TodoistAPI):
     assert task.duration is not None
     assert task.duration.amount == 30
     assert task.duration.unit == "minute"
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.duration is not None
+    assert retrieved_task.duration.amount == 30
+    assert retrieved_task.duration.unit == "minute"
 
 
 def test_create_task_in_project(todoist_client: TodoistAPI):
@@ -131,6 +167,10 @@ def test_create_task_in_project(todoist_client: TodoistAPI):
 
     assert task is not None
     assert task.project_id == project.id
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.project_id == project.id
 
 
 def test_get_task(todoist_client: TodoistAPI):
@@ -220,6 +260,10 @@ def test_update_task_content(todoist_client: TodoistAPI):
     assert updated_task.id == task.id
     assert updated_task.content == "Updated content"
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Updated content"
+
 
 def test_update_task_priority(todoist_client: TodoistAPI):
     """Test updating a task's priority"""
@@ -231,6 +275,10 @@ def test_update_task_priority(todoist_client: TodoistAPI):
 
     assert updated_task.id == task.id
     assert updated_task.priority == 4
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.priority == 4
 
 
 def test_update_task_labels(todoist_client: TodoistAPI):
@@ -245,6 +293,10 @@ def test_update_task_labels(todoist_client: TodoistAPI):
 
     assert updated_task.id == task.id
     assert updated_task.labels == ["new-label", "another-label"]
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.labels == ["new-label", "another-label"]
 
 
 def test_update_task_due_date(todoist_client: TodoistAPI):
@@ -261,6 +313,11 @@ def test_update_task_due_date(todoist_client: TodoistAPI):
     assert updated_task.due is not None
     assert updated_task.due.string == "next Monday"
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.due is not None
+    assert retrieved_task.due.string == "next Monday"
+
 
 def test_update_task_remove_due_date(todoist_client: TodoistAPI):
     """Test removing a task's due date"""
@@ -272,6 +329,10 @@ def test_update_task_remove_due_date(todoist_client: TodoistAPI):
 
     assert updated_task.id == task.id
     assert updated_task.due is None
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.due is None
 
 
 def test_update_task_duration(todoist_client: TodoistAPI):
@@ -290,6 +351,12 @@ def test_update_task_duration(todoist_client: TodoistAPI):
     assert updated_task.duration is not None
     assert updated_task.duration.amount == 60
     assert updated_task.duration.unit == "minute"
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.duration is not None
+    assert retrieved_task.duration.amount == 60
+    assert retrieved_task.duration.unit == "minute"
 
 
 def test_delete_task(todoist_client: TodoistAPI):
@@ -424,6 +491,12 @@ def test_create_task_with_recurring_pattern(todoist_client: TodoistAPI):
     # Note: is_recurring would be set by the real API's NLP parser
     # Our fake just stores the string
 
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Weekly meeting"
+    assert retrieved_task.due is not None
+    assert retrieved_task.due.string == "every Monday"
+
 
 def test_create_subtask(todoist_client: TodoistAPI):
     """Test creating a subtask (child task)"""
@@ -438,6 +511,11 @@ def test_create_subtask(todoist_client: TodoistAPI):
     assert subtask is not None
     assert subtask.parent_id == parent.id
     assert subtask.content == "Subtask 1"
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_subtask = todoist_client.get_task(task_id=subtask.id)
+    assert retrieved_subtask.parent_id == parent.id
+    assert retrieved_subtask.content == "Subtask 1"
 
 
 def test_get_tasks_by_parent(todoist_client: TodoistAPI):
@@ -484,3 +562,13 @@ def test_create_task_with_multiple_features(todoist_client: TodoistAPI):
     assert task.duration is not None
     assert task.duration.amount == 120
     assert task.duration.unit == "minute"
+
+    # Verify round-trip: read back to prove persistence
+    retrieved_task = todoist_client.get_task(task_id=task.id)
+    assert retrieved_task.content == "Complex task"
+    assert retrieved_task.project_id == project.id
+    assert len(retrieved_task.labels) == 3
+    assert retrieved_task.priority == 4
+    assert retrieved_task.due is not None
+    assert retrieved_task.duration is not None
+    assert retrieved_task.duration.amount == 120

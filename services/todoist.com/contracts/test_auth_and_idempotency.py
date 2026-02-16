@@ -22,6 +22,11 @@ def test_bearer_token_authentication_accepted(todoist_client: TodoistAPI):
     assert task.id is not None
     assert task.content == "Test task with fake token"
 
+    # Verify round-trip: read back the task to prove it was persisted
+    fetched_task = todoist_client.get_task(task_id=task.id)
+    assert fetched_task.id == task.id
+    assert fetched_task.content == "Test task with fake token"
+
 
 def test_bearer_token_any_value_accepted(fake_url: str, monkeypatch):
     """Test that any Bearer token value is accepted (not validated)"""
@@ -43,6 +48,11 @@ def test_bearer_token_any_value_accepted(fake_url: str, monkeypatch):
         task = client.add_task(content=f"Task with token: {token[:20]}")
         assert task is not None
         assert task.id is not None
+
+        # Verify round-trip: read back the task to prove it was persisted
+        fetched_task = client.get_task(task_id=task.id)
+        assert fetched_task.id == task.id
+        assert fetched_task.content == f"Task with token: {token[:20]}"
 
 
 def test_idempotent_task_creation(fake_url: str, monkeypatch):
@@ -107,6 +117,14 @@ def test_different_request_ids_create_different_tasks(fake_url: str, monkeypatch
 
     # All three should have different IDs
     assert len(set(created_task_ids)) == 3
+
+    # Verify round-trip: read back each task to prove they were all persisted
+    verify_client = TodoistAPI("fake-token", request_id_fn=lambda: None)
+    for task_id in created_task_ids:
+        fetched_task = verify_client.get_task(task_id=task_id)
+        assert fetched_task.id == task_id
+        assert fetched_task.content == "Task for different request IDs"
+        assert fetched_task.priority == 2
 
 
 def test_idempotent_task_update(fake_url: str, monkeypatch):
@@ -214,6 +232,15 @@ def test_request_without_x_request_id_not_cached(fake_url: str, monkeypatch):
     # Should create two different tasks (different IDs)
     assert task1.id != task2.id
     assert task1.content == task2.content
+
+    # Verify round-trip: read back both tasks to prove they were persisted
+    fetched_task1 = client.get_task(task_id=task1.id)
+    assert fetched_task1.id == task1.id
+    assert fetched_task1.content == "Task without request ID"
+
+    fetched_task2 = client.get_task(task_id=task2.id)
+    assert fetched_task2.id == task2.id
+    assert fetched_task2.content == "Task without request ID"
 
 
 def test_request_id_cache_cleared_on_reset(fake_url: str, monkeypatch):

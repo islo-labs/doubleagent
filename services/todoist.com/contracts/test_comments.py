@@ -25,6 +25,12 @@ def test_add_comment_to_task(todoist_client: TodoistAPI):
     assert comment.project_id is None
     assert comment.posted_at is not None
 
+    # Verify persistence by reading back the comment
+    retrieved_comment = todoist_client.get_comment(comment_id=comment.id)
+    assert retrieved_comment.id == comment.id
+    assert retrieved_comment.content == "Looks good to me!"
+    assert retrieved_comment.task_id == task.id
+
 
 def test_add_comment_to_project(todoist_client: TodoistAPI):
     """Test creating a comment on a project"""
@@ -39,6 +45,12 @@ def test_add_comment_to_project(todoist_client: TodoistAPI):
     assert comment.project_id == project.id
     assert comment.task_id is None
 
+    # Verify persistence by reading back the comment
+    retrieved_comment = todoist_client.get_comment(comment_id=comment.id)
+    assert retrieved_comment.id == comment.id
+    assert retrieved_comment.content == "Let's sync on Monday"
+    assert retrieved_comment.project_id == project.id
+
 
 def test_add_comment_with_markdown(todoist_client: TodoistAPI):
     """Test creating a comment with markdown formatting"""
@@ -49,6 +61,10 @@ def test_add_comment_with_markdown(todoist_client: TodoistAPI):
 
     assert comment is not None
     assert comment.content == markdown_content
+
+    # Verify persistence by reading back the comment
+    retrieved_comment = todoist_client.get_comment(comment_id=comment.id)
+    assert retrieved_comment.content == markdown_content
 
 
 def test_add_comment_with_attachment(todoist_client: TodoistAPI):
@@ -73,6 +89,13 @@ def test_add_comment_with_attachment(todoist_client: TodoistAPI):
     assert comment.attachment.file_url == "https://example.com/mockup.png"
     assert comment.attachment.file_type == "image/png"
     assert comment.attachment.file_name == "mockup.png"
+
+    # Verify persistence by reading back the comment
+    retrieved_comment = todoist_client.get_comment(comment_id=comment.id)
+    assert retrieved_comment.id == comment.id
+    assert retrieved_comment.content == "Here are the mockups"
+    assert retrieved_comment.attachment is not None
+    assert retrieved_comment.attachment.file_url == "https://example.com/mockup.png"
 
 
 def test_get_comments_for_task(todoist_client: TodoistAPI):
@@ -149,6 +172,12 @@ def test_update_comment(todoist_client: TodoistAPI):
     assert updated_comment.id == comment.id
     assert updated_comment.content == "Fixed and tested"
     assert updated_comment.task_id == task.id
+
+    # Verify persistence by reading back the comment
+    retrieved_comment = todoist_client.get_comment(comment_id=comment.id)
+    assert retrieved_comment.id == comment.id
+    assert retrieved_comment.content == "Fixed and tested"
+    assert retrieved_comment.task_id == task.id
 
 
 def test_delete_comment(todoist_client: TodoistAPI):
@@ -298,6 +327,11 @@ def test_update_comment_preserves_attachment(todoist_client: TodoistAPI):
     # but this test documents expected behavior
     assert updated_comment.content == "Updated content"
 
+    # Verify persistence by reading back the comment
+    retrieved_comment = todoist_client.get_comment(comment_id=comment.id)
+    assert retrieved_comment.id == comment.id
+    assert retrieved_comment.content == "Updated content"
+
 
 def test_comment_on_completed_task(todoist_client: TodoistAPI):
     """Test that comments can be added to completed tasks"""
@@ -314,6 +348,12 @@ def test_comment_on_completed_task(todoist_client: TodoistAPI):
     assert comment is not None
     assert comment.content == "Follow-up note on completed task"
     assert comment.task_id == task.id
+
+    # Verify persistence by reading back the comment
+    retrieved_comment = todoist_client.get_comment(comment_id=comment.id)
+    assert retrieved_comment.id == comment.id
+    assert retrieved_comment.content == "Follow-up note on completed task"
+    assert retrieved_comment.task_id == task.id
 
 
 def test_get_comments_empty_list(todoist_client: TodoistAPI):

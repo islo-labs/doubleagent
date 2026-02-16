@@ -21,6 +21,11 @@ def test_add_personal_label(todoist_client: TodoistAPI):
     assert label.order is not None
     assert label.is_favorite is not None
 
+    # Read back to verify persistence
+    retrieved_label = todoist_client.get_label(label_id=label.id)
+    assert retrieved_label.id == label.id
+    assert retrieved_label.name == "Work"
+
 
 def test_add_personal_label_with_color(todoist_client: TodoistAPI):
     """Test creating a personal label with custom color"""
@@ -30,6 +35,12 @@ def test_add_personal_label_with_color(todoist_client: TodoistAPI):
     assert label.id is not None
     assert label.name == "Urgent"
     assert label.color == "red"
+
+    # Read back to verify persistence
+    retrieved_label = todoist_client.get_label(label_id=label.id)
+    assert retrieved_label.id == label.id
+    assert retrieved_label.name == "Urgent"
+    assert retrieved_label.color == "red"
 
 
 def test_add_personal_label_with_favorite(todoist_client: TodoistAPI):
@@ -41,6 +52,12 @@ def test_add_personal_label_with_favorite(todoist_client: TodoistAPI):
     assert label.name == "Important"
     assert label.is_favorite is True
 
+    # Read back to verify persistence
+    retrieved_label = todoist_client.get_label(label_id=label.id)
+    assert retrieved_label.id == label.id
+    assert retrieved_label.name == "Important"
+    assert retrieved_label.is_favorite is True
+
 
 def test_add_personal_label_with_order(todoist_client: TodoistAPI):
     """Test creating a personal label with custom order"""
@@ -50,6 +67,12 @@ def test_add_personal_label_with_order(todoist_client: TodoistAPI):
     assert label.id is not None
     assert label.name == "Priority"
     assert label.order == 5
+
+    # Read back to verify persistence
+    retrieved_label = todoist_client.get_label(label_id=label.id)
+    assert retrieved_label.id == label.id
+    assert retrieved_label.name == "Priority"
+    assert retrieved_label.order == 5
 
 
 def test_get_label_by_id(todoist_client: TodoistAPI):
@@ -97,6 +120,11 @@ def test_update_label_name(todoist_client: TodoistAPI):
     assert updated_label.id == label.id
     assert updated_label.name == "NewName"
 
+    # Read back to verify persistence
+    retrieved_label = todoist_client.get_label(label_id=label.id)
+    assert retrieved_label.id == label.id
+    assert retrieved_label.name == "NewName"
+
 
 def test_update_label_color(todoist_client: TodoistAPI):
     """Test updating a label's color"""
@@ -110,6 +138,12 @@ def test_update_label_color(todoist_client: TodoistAPI):
     assert updated_label.id == label.id
     assert updated_label.color == "green"
     assert updated_label.name == "ColorTest"
+
+    # Read back to verify persistence
+    retrieved_label = todoist_client.get_label(label_id=label.id)
+    assert retrieved_label.id == label.id
+    assert retrieved_label.color == "green"
+    assert retrieved_label.name == "ColorTest"
 
 
 def test_update_label_favorite_status(todoist_client: TodoistAPI):
@@ -126,6 +160,11 @@ def test_update_label_favorite_status(todoist_client: TodoistAPI):
     assert updated_label.id == label.id
     assert updated_label.is_favorite is True
 
+    # Read back to verify persistence
+    retrieved_label = todoist_client.get_label(label_id=label.id)
+    assert retrieved_label.id == label.id
+    assert retrieved_label.is_favorite is True
+
 
 def test_update_label_order(todoist_client: TodoistAPI):
     """Test updating a label's order"""
@@ -138,6 +177,11 @@ def test_update_label_order(todoist_client: TodoistAPI):
     assert updated_label is not None
     assert updated_label.id == label.id
     assert updated_label.order == 10
+
+    # Read back to verify persistence
+    retrieved_label = todoist_client.get_label(label_id=label.id)
+    assert retrieved_label.id == label.id
+    assert retrieved_label.order == 10
 
 
 def test_update_label_multiple_fields(todoist_client: TodoistAPI):
@@ -162,6 +206,14 @@ def test_update_label_multiple_fields(todoist_client: TodoistAPI):
     assert updated_label.color == "red"
     assert updated_label.is_favorite is True
     assert updated_label.order == 5
+
+    # Read back to verify persistence
+    retrieved_label = todoist_client.get_label(label_id=label.id)
+    assert retrieved_label.id == label.id
+    assert retrieved_label.name == "UpdatedName"
+    assert retrieved_label.color == "red"
+    assert retrieved_label.is_favorite is True
+    assert retrieved_label.order == 5
 
 
 def test_delete_label(todoist_client: TodoistAPI):

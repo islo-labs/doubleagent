@@ -23,6 +23,12 @@ def test_create_section(todoist_client: TodoistAPI):
     assert section.project_id == project.id
     assert section.order is not None
 
+    # Verify persistence by reading back
+    retrieved_section = todoist_client.get_section(section_id=section.id)
+    assert retrieved_section.id == section.id
+    assert retrieved_section.name == "Test Section"
+    assert retrieved_section.project_id == project.id
+
 
 def test_get_section(todoist_client: TodoistAPI):
     """Test retrieving a specific section by ID"""
@@ -103,6 +109,12 @@ def test_update_section(todoist_client: TodoistAPI):
     assert updated_section.id == section.id
     assert updated_section.name == "Updated Name"
     assert updated_section.project_id == project.id
+
+    # Verify persistence by reading back
+    retrieved_section = todoist_client.get_section(section_id=section.id)
+    assert retrieved_section.id == section.id
+    assert retrieved_section.name == "Updated Name"
+    assert retrieved_section.project_id == project.id
 
 
 def test_delete_section(todoist_client: TodoistAPI):
@@ -191,6 +203,19 @@ def test_create_multiple_sections_with_order(todoist_client: TodoistAPI):
     assert section2.order == 2
     assert section3.order == 3
 
+    # Verify persistence by reading back each section
+    retrieved_section1 = todoist_client.get_section(section_id=section1.id)
+    assert retrieved_section1.order == 1
+    assert retrieved_section1.name == "First Section"
+
+    retrieved_section2 = todoist_client.get_section(section_id=section2.id)
+    assert retrieved_section2.order == 2
+    assert retrieved_section2.name == "Second Section"
+
+    retrieved_section3 = todoist_client.get_section(section_id=section3.id)
+    assert retrieved_section3.order == 3
+    assert retrieved_section3.name == "Third Section"
+
 
 def test_organize_tasks_in_sections(todoist_client: TodoistAPI):
     """Test organizing tasks hierarchically using sections"""
@@ -207,6 +232,19 @@ def test_organize_tasks_in_sections(todoist_client: TodoistAPI):
     done_section = todoist_client.add_section(
         name="Done", project_id=project.id, order=3
     )
+
+    # Verify section persistence by reading back
+    retrieved_todo = todoist_client.get_section(section_id=todo_section.id)
+    assert retrieved_todo.name == "To Do"
+    assert retrieved_todo.order == 1
+
+    retrieved_in_progress = todoist_client.get_section(section_id=in_progress_section.id)
+    assert retrieved_in_progress.name == "In Progress"
+    assert retrieved_in_progress.order == 2
+
+    retrieved_done = todoist_client.get_section(section_id=done_section.id)
+    assert retrieved_done.name == "Done"
+    assert retrieved_done.order == 3
 
     # Add tasks to different sections
     task1 = todoist_client.add_task(

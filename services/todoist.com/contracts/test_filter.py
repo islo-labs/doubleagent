@@ -19,6 +19,12 @@ def test_filter_by_priority(todoist_client: TodoistAPI):
     task_p3 = todoist_client.add_task(content="High priority task", priority=3)
     task_p4 = todoist_client.add_task(content="Urgent task", priority=4)
 
+    # Verify tasks were persisted via round-trip
+    persisted_p1 = todoist_client.get_task(task_id=task_p1.id)
+    assert persisted_p1.priority == 1
+    persisted_p4 = todoist_client.get_task(task_id=task_p4.id)
+    assert persisted_p4.priority == 4
+
     # Filter for priority 4 tasks
     p4_tasks = list(todoist_client.filter_tasks(query="p4"))[0]
     assert len(p4_tasks) == 1
@@ -38,6 +44,13 @@ def test_filter_by_label(todoist_client: TodoistAPI):
     task1 = todoist_client.add_task(content="Work task", labels=["work", "urgent"])
     task2 = todoist_client.add_task(content="Personal task", labels=["personal"])
     task3 = todoist_client.add_task(content="Another work task", labels=["work"])
+
+    # Verify tasks were persisted via round-trip
+    persisted_task1 = todoist_client.get_task(task_id=task1.id)
+    assert "work" in persisted_task1.labels
+    assert "urgent" in persisted_task1.labels
+    persisted_task2 = todoist_client.get_task(task_id=task2.id)
+    assert "personal" in persisted_task2.labels
 
     # Filter by @work label
     work_tasks = list(todoist_client.filter_tasks(query="@work"))[0]
@@ -59,6 +72,12 @@ def test_filter_by_label_wildcard(todoist_client: TodoistAPI):
     task2 = todoist_client.add_task(content="Task 2", labels=["urgent-work"])
     task3 = todoist_client.add_task(content="Task 3", labels=["urgent-personal"])
     task4 = todoist_client.add_task(content="Task 4", labels=["work"])
+
+    # Verify tasks were persisted via round-trip
+    persisted_task1 = todoist_client.get_task(task_id=task1.id)
+    assert "urgent" in persisted_task1.labels
+    persisted_task2 = todoist_client.get_task(task_id=task2.id)
+    assert "urgent-work" in persisted_task2.labels
 
     # Filter by @urgent* (wildcard)
     urgent_tasks = list(todoist_client.filter_tasks(query="@urgent*"))[0]
@@ -82,6 +101,11 @@ def test_filter_by_due_date_today(todoist_client: TodoistAPI):
     )
     task_no_date = todoist_client.add_task(content="Task with no due date")
 
+    # Verify tasks were persisted via round-trip
+    persisted_today = todoist_client.get_task(task_id=task_today.id)
+    assert persisted_today.due is not None
+    assert persisted_today.due.date == str(today)
+
     # Filter by today
     today_tasks = list(todoist_client.filter_tasks(query="today"))[0]
     assert len(today_tasks) == 1
@@ -98,6 +122,11 @@ def test_filter_by_due_date_tomorrow(todoist_client: TodoistAPI):
     task_tomorrow = todoist_client.add_task(
         content="Task due tomorrow", due_date=tomorrow
     )
+
+    # Verify tasks were persisted via round-trip
+    persisted_tomorrow = todoist_client.get_task(task_id=task_tomorrow.id)
+    assert persisted_tomorrow.due is not None
+    assert persisted_tomorrow.due.date == str(tomorrow)
 
     # Filter by tomorrow
     tomorrow_tasks = list(todoist_client.filter_tasks(query="tomorrow"))[0]
@@ -119,6 +148,11 @@ def test_filter_by_overdue(todoist_client: TodoistAPI):
         content="Task 2 days overdue", due_date=two_days_ago
     )
     task_today = todoist_client.add_task(content="Task due today", due_date=today)
+
+    # Verify tasks were persisted via round-trip
+    persisted_overdue1 = todoist_client.get_task(task_id=task_overdue1.id)
+    assert persisted_overdue1.due is not None
+    assert persisted_overdue1.due.date == str(yesterday)
 
     # Filter by overdue
     overdue_tasks = list(todoist_client.filter_tasks(query="overdue"))[0]
@@ -142,6 +176,11 @@ def test_filter_by_date_range_next_7_days(todoist_client: TodoistAPI):
     task_10_days = todoist_client.add_task(
         content="Task in 10 days", due_date=in_10_days
     )
+
+    # Verify tasks were persisted via round-trip
+    persisted_3_days = todoist_client.get_task(task_id=task_3_days.id)
+    assert persisted_3_days.due is not None
+    assert persisted_3_days.due.date == str(in_3_days)
 
     # Filter by next 7 days
     next_7_days_tasks = list(todoist_client.filter_tasks(query="7 days"))[0]
@@ -170,6 +209,11 @@ def test_filter_by_date_range_past_3_days(todoist_client: TodoistAPI):
         content="Task from 5 days ago", due_date=five_days_ago
     )
 
+    # Verify tasks were persisted via round-trip
+    persisted_yesterday = todoist_client.get_task(task_id=task_yesterday.id)
+    assert persisted_yesterday.due is not None
+    assert persisted_yesterday.due.date == str(yesterday)
+
     # Filter by past 3 days
     past_3_days_tasks = list(todoist_client.filter_tasks(query="-3 days"))[0]
     assert len(past_3_days_tasks) == 2
@@ -191,6 +235,11 @@ def test_filter_and_operator_priority_and_label(todoist_client: TodoistAPI):
     task3 = todoist_client.add_task(
         content="High priority personal task", priority=4, labels=["personal"]
     )
+
+    # Verify tasks were persisted via round-trip
+    persisted_task1 = todoist_client.get_task(task_id=task1.id)
+    assert persisted_task1.priority == 4
+    assert "work" in persisted_task1.labels
 
     # Filter by p4 AND @work
     filtered_tasks = list(todoist_client.filter_tasks(query="p4 & @work"))[0]
@@ -217,6 +266,11 @@ def test_filter_and_operator_date_and_label(todoist_client: TodoistAPI):
         content="Task today without waiting", due_date=today, labels=["urgent"]
     )
 
+    # Verify tasks were persisted via round-trip
+    persisted_task1 = todoist_client.get_task(task_id=task1.id)
+    assert persisted_task1.due is not None
+    assert "waiting" in persisted_task1.labels
+
     # Filter by "7 days & @waiting" - tasks in next 7 days with @waiting label
     filtered_tasks = list(todoist_client.filter_tasks(query="7 days & @waiting"))[0]
     assert len(filtered_tasks) == 2
@@ -242,6 +296,11 @@ def test_filter_and_operator_priority_and_overdue(todoist_client: TodoistAPI):
         content="Priority 4 today", priority=4, due_date=today
     )
 
+    # Verify tasks were persisted via round-trip
+    persisted_task1 = todoist_client.get_task(task_id=task1.id)
+    assert persisted_task1.priority == 1
+    assert persisted_task1.due is not None
+
     # Filter by "p1 & overdue"
     filtered_tasks = list(todoist_client.filter_tasks(query="p1 & overdue"))[0]
     assert len(filtered_tasks) == 1
@@ -264,6 +323,11 @@ def test_filter_or_operator_today_or_overdue(todoist_client: TodoistAPI):
         content="Task tomorrow", due_date=tomorrow
     )
 
+    # Verify tasks were persisted via round-trip
+    persisted_today = todoist_client.get_task(task_id=task_today.id)
+    assert persisted_today.due is not None
+    assert persisted_today.due.date == str(today)
+
     # Filter by "today | overdue"
     filtered_tasks = list(todoist_client.filter_tasks(query="today | overdue"))[0]
     assert len(filtered_tasks) == 2
@@ -281,6 +345,12 @@ def test_filter_or_operator_multiple_labels(todoist_client: TodoistAPI):
     task3 = todoist_client.add_task(content="Shopping task", labels=["shopping"])
     task4 = todoist_client.add_task(content="Urgent task", labels=["urgent"])
 
+    # Verify tasks were persisted via round-trip
+    persisted_task1 = todoist_client.get_task(task_id=task1.id)
+    assert "work" in persisted_task1.labels
+    persisted_task2 = todoist_client.get_task(task_id=task2.id)
+    assert "personal" in persisted_task2.labels
+
     # Filter by "@work | @personal"
     filtered_tasks = list(todoist_client.filter_tasks(query="@work | @personal"))[0]
     assert len(filtered_tasks) == 2
@@ -297,6 +367,12 @@ def test_filter_or_operator_multiple_priorities(todoist_client: TodoistAPI):
     task_p2 = todoist_client.add_task(content="Medium priority", priority=2)
     task_p3 = todoist_client.add_task(content="High priority", priority=3)
     task_p4 = todoist_client.add_task(content="Urgent priority", priority=4)
+
+    # Verify tasks were persisted via round-trip
+    persisted_p1 = todoist_client.get_task(task_id=task_p1.id)
+    assert persisted_p1.priority == 1
+    persisted_p4 = todoist_client.get_task(task_id=task_p4.id)
+    assert persisted_p4.priority == 4
 
     # Filter by "p1 | p4"
     filtered_tasks = list(todoist_client.filter_tasks(query="p1 | p4"))[0]
@@ -333,6 +409,12 @@ def test_filter_complex_and_or_combination(todoist_client: TodoistAPI):
         due_date=yesterday,
     )
 
+    # Verify tasks were persisted via round-trip
+    persisted_task1 = todoist_client.get_task(task_id=task1.id)
+    assert persisted_task1.priority == 4
+    assert persisted_task1.due is not None
+    assert "work" in persisted_task1.labels
+
     # Filter by "p4 & (today | overdue)" - this tests precedence
     # For simplicity, test "p4 & today"
     filtered_tasks = list(todoist_client.filter_tasks(query="p4 & today"))[0]
@@ -349,11 +431,19 @@ def test_filter_by_project(todoist_client: TodoistAPI):
     project_work = todoist_client.add_project(name="Work")
     project_personal = todoist_client.add_project(name="Personal")
 
+    # Verify projects were persisted via round-trip
+    persisted_project_work = todoist_client.get_project(project_id=project_work.id)
+    assert persisted_project_work.name == "Work"
+
     # Create tasks in different projects
     task1 = todoist_client.add_task(content="Work task", project_id=project_work.id)
     task2 = todoist_client.add_task(
         content="Personal task", project_id=project_personal.id
     )
+
+    # Verify tasks were persisted via round-trip
+    persisted_task1 = todoist_client.get_task(task_id=task1.id)
+    assert persisted_task1.project_id == project_work.id
 
     # Filter by #Work project
     work_tasks = list(todoist_client.filter_tasks(query="#Work"))[0]
@@ -367,6 +457,10 @@ def test_filter_project_and_priority(todoist_client: TodoistAPI):
     # Create project
     project_work = todoist_client.add_project(name="Work")
 
+    # Verify project was persisted via round-trip
+    persisted_project = todoist_client.get_project(project_id=project_work.id)
+    assert persisted_project.name == "Work"
+
     # Create tasks
     task1 = todoist_client.add_task(
         content="High priority work task", priority=4, project_id=project_work.id
@@ -374,6 +468,11 @@ def test_filter_project_and_priority(todoist_client: TodoistAPI):
     task2 = todoist_client.add_task(
         content="Low priority work task", priority=1, project_id=project_work.id
     )
+
+    # Verify tasks were persisted via round-trip
+    persisted_task1 = todoist_client.get_task(task_id=task1.id)
+    assert persisted_task1.priority == 4
+    assert persisted_task1.project_id == project_work.id
 
     # Filter by "#Work & p4"
     filtered_tasks = list(todoist_client.filter_tasks(query="#Work & p4"))[0]
@@ -388,8 +487,16 @@ def test_filter_excludes_completed_tasks(todoist_client: TodoistAPI):
     task1 = todoist_client.add_task(content="Active task", priority=4)
     task2 = todoist_client.add_task(content="Completed task", priority=4)
 
+    # Verify tasks were persisted via round-trip
+    persisted_task1 = todoist_client.get_task(task_id=task1.id)
+    assert persisted_task1.priority == 4
+
     # Complete task2
     todoist_client.complete_task(task_id=task2.id)
+
+    # Verify task2 was completed via round-trip
+    persisted_task2 = todoist_client.get_task(task_id=task2.id)
+    assert persisted_task2.completed_at is not None
 
     # Filter by p4 - should only return active task
     filtered_tasks = list(todoist_client.filter_tasks(query="p4"))[0]
@@ -400,7 +507,12 @@ def test_filter_excludes_completed_tasks(todoist_client: TodoistAPI):
 def test_filter_empty_result(todoist_client: TodoistAPI):
     """Test that filter returns empty list when no tasks match"""
     # Create a task with specific attributes
-    todoist_client.add_task(content="Task", priority=1, labels=["work"])
+    task = todoist_client.add_task(content="Task", priority=1, labels=["work"])
+
+    # Verify task was persisted via round-trip
+    persisted_task = todoist_client.get_task(task_id=task.id)
+    assert persisted_task.priority == 1
+    assert "work" in persisted_task.labels
 
     # Filter for something that doesn't exist
     filtered_tasks = list(todoist_client.filter_tasks(query="p4 & @personal"))[0]
@@ -413,6 +525,14 @@ def test_filter_all_tasks_no_filter(todoist_client: TodoistAPI):
     task1 = todoist_client.add_task(content="Task 1")
     task2 = todoist_client.add_task(content="Task 2")
     task3 = todoist_client.add_task(content="Task 3")
+
+    # Verify tasks were persisted via round-trip
+    persisted_task1 = todoist_client.get_task(task_id=task1.id)
+    assert persisted_task1.content == "Task 1"
+    persisted_task2 = todoist_client.get_task(task_id=task2.id)
+    assert persisted_task2.content == "Task 2"
+    persisted_task3 = todoist_client.get_task(task_id=task3.id)
+    assert persisted_task3.content == "Task 3"
 
     # Get all tasks - get_tasks returns an iterator, so convert to list
     all_tasks = list(todoist_client.get_tasks())[0]
