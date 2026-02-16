@@ -1,0 +1,45 @@
+# Tier 2 fixture: "startup" — a small workspace with typical channels and users.
+# Usage: doubleagent seed slack --fixture startup
+
+users:
+  - name: alice
+    real_name: Alice Engineer
+    is_bot: false
+    is_admin: true
+  - name: bob
+    real_name: Bob Developer
+    is_bot: false
+  - name: carol
+    real_name: Carol PM
+    is_bot: false
+  - name: deploy-bot
+    real_name: Deploy Bot
+    is_bot: true
+
+channels:
+  - name: general
+    purpose: "Company-wide announcements"
+  - name: engineering
+    purpose: "Engineering discussions"
+  - name: product
+    purpose: "Product planning"
+  - name: random
+    purpose: "Water cooler chat"
+  - name: alerts
+    purpose: "Automated monitoring alerts"
+  - name: deploys
+    purpose: "Deployment notifications"
+  - name: support-escalation
+    is_private: true
+    purpose: "Escalated customer issues"
+
+messages:
+  - channel: general
+    text: "Welcome to the team workspace!"
+    user: U00000001
+  - channel: engineering
+    text: "Sprint planning at 10am tomorrow"
+    user: U00000001
+  - channel: alerts
+    text: "[OK] All systems operational"
+    user: U00000001
