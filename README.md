@@ -133,8 +133,8 @@ doubleagent start github slack
 | Service | Status | Official SDK |
 |---------|--------|--------------|
 | GitHub | ✅ Available | PyGithub, octokit |
+| Slack | ✅ Available | slack_sdk |
 | Jira | 🚧 Coming soon | atlassian-python-api |
-| Slack | 🚧 Coming soon | slack_sdk |
 | Okta | 🚧 Coming soon | okta |
 | Auth0 | 🚧 Coming soon | auth0-python |
 | Stripe | 🚧 Coming soon | stripe |
@@ -157,6 +157,11 @@ Every service must implement these endpoints:
 | `/_doubleagent/health` | GET | Health check |
 | `/_doubleagent/reset` | POST | Clear all state |
 | `/_doubleagent/seed` | POST | Seed state from JSON |
+| `/_doubleagent/events` | GET | Event log for debugging (optional) |
+
+### Webhook Support
+
+Services that support webhooks will automatically dispatch events when state changes. Register webhooks via the service API or seed them with test data. See [docs/webhooks.md](docs/webhooks.md) for details.
 
 ## License
 

@@ -25,11 +25,12 @@ from pydantic import BaseModel
 # State
 # =============================================================================
 
-state: dict[str, dict] = {
+state: dict[str, Any] = {
     "users": {},
     "channels": {},
     "messages": {},  # channel_id -> [message]
     "webhooks": [],  # Event subscriptions
+    "event_log": [],  # Dispatched events for debugging
 }
 
 counters: dict[str, int] = {
@@ -71,6 +72,7 @@ def reset_state() -> None:
         "channels": {},
         "messages": {},
         "webhooks": [],
+        "event_log": [],
     }
     counters = {
         "user_id": 0,
@@ -87,6 +89,7 @@ class SeedData(BaseModel):
     users: list[dict[str, Any]] = []
     channels: list[dict[str, Any]] = []
     messages: list[dict[str, Any]] = []
+    webhooks: list[dict[str, Any]] = []
 
 
 class SlackResponse(BaseModel):
@@ -224,6 +227,16 @@ async def seed(data: SeedData):
                 state["messages"][channel_id].append(msg)
         seeded["messages"] = len(data.messages)
     
+    if data.webhooks:
+        for w in data.webhooks:
+            webhook = {
+                "url": w["url"],
+                "events": w.get("events", ["*"]),
+                "active": w.get("active", True),
+            }
+            state["webhooks"].append(webhook)
+        seeded["webhooks"] = len(data.webhooks)
+    
     return {"status": "ok", "seeded": seeded}
 
 
@@ -239,6 +252,29 @@ async def info():
             "messages": sum(len(msgs) for msgs in state["messages"].values()),
         }
     }
+
+
+@app.get("/_doubleagent/events")
+async def get_events(limit: int = Query(default=50, le=500)):
+    """
+    Get event dispatch log for debugging.
+    
+    Returns a list of all event dispatch attempts with their status.
+    Useful for verifying webhooks were sent and diagnosing delivery issues.
+    """
+    events = state["event_log"][-limit:]
+    return {
+        "total": len(state["event_log"]),
+        "returned": len(events),
+        "events": events,
+    }
+
+
+@app.delete("/_doubleagent/events")
+async def clear_events():
+    """Clear the event log."""
+    state["event_log"] = []
+    return {"status": "ok"}
 
 
 # =============================================================================
@@ -647,7 +683,7 @@ async def reactions_add(
 
 async def dispatch_event(event_type: str, payload: dict) -> None:
     """Dispatch events to registered webhooks."""
-    for webhook in state["webhooks"]:
+    for i, webhook in enumerate(state["webhooks"]):
         if not webhook.get("active", True):
             continue
         
@@ -658,21 +694,47 @@ async def dispatch_event(event_type: str, payload: dict) -> None:
             "event_time": int(time.time()),
         }
         
-        asyncio.create_task(_send_event(webhook["url"], event_data))
+        asyncio.create_task(_send_event(webhook["url"], event_type, event_data, i))
 
 
-async def _send_event(url: str, payload: dict) -> None:
-    """Send event to webhook (runs as background task)."""
+async def _send_event(url: str, event_type: str, payload: dict, webhook_index: int) -> None:
+    """Send event to webhook (runs as background task) and log the result."""
+    event_record = {
+        "timestamp": time.time(),
+        "webhook_index": webhook_index,
+        "event_type": event_type,
+        "url": url,
+        "status": "pending",
+        "response_code": None,
+        "error": None,
+    }
+    
     try:
         async with httpx.AsyncClient() as client:
-            await client.post(
+            resp = await client.post(
                 url,
                 json=payload,
                 headers={"Content-Type": "application/json"},
                 timeout=5.0,
             )
-    except Exception:
-        pass  # Event delivery is best-effort
+            event_record["status"] = "delivered"
+            event_record["response_code"] = resp.status_code
+    except httpx.TimeoutException:
+        event_record["status"] = "timeout"
+        event_record["error"] = "Request timed out after 5s"
+    except httpx.ConnectError as e:
+        event_record["status"] = "connection_failed"
+        event_record["error"] = f"Connection failed: {str(e)}"
+    except Exception as e:
+        event_record["status"] = "error"
+        event_record["error"] = str(e)
+    
+    # Append to event log
+    state["event_log"].append(event_record)
+    
+    # Keep log bounded (max 1000 events)
+    if len(state["event_log"]) > 1000:
+        state["event_log"] = state["event_log"][-1000:]
 
 
 # =============================================================================
