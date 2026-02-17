@@ -3,16 +3,32 @@ version: "1.0"
 description: Stripe API fake
 docs: https://stripe.com/docs/api
 
+brief: |
+  Stripe is a payment processing platform for internet businesses.
+  Its API allows programmatic access to customers, payments, subscriptions,
+  invoices, products, prices, and webhooks.
+
+  This fake implements the core Stripe API surface that AI agents
+  typically interact with: customer management, payment intents,
+  subscription workflows, and webhook event delivery.
+
+supported_flows:
+  - crud-customers
+  - payment-intents
+  - products-prices
+  - subscriptions
+  - invoices
+  - webhooks
+
 server:
   command: ["uv", "run", "python", "main.py"]
-  port: 8082
 
 contracts:
   command: ["uv", "run", "pytest", "-v", "--tb=short"]
 
-env:
-  STRIPE_API_URL: "http://localhost:${port}"
-  STRIPE_API_KEY: "sk_test_doubleagent_fake_key"
+# Environment variables set by the CLI when running contract tests:
+#   DOUBLEAGENT_STRIPE_URL - URL of the running fake service (set automatically)
+#   PORT - Port the service listens on (set automatically)
 
 features:
   webhooks: true
