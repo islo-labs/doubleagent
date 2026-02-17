@@ -80,6 +80,23 @@ impl ServiceRegistry {
         })
     }
 
+    /// Check if a service exists in the local working directory (./services/{name}).
+    /// This takes precedence over the cache for development and CI workflows.
+    fn find_local_service(&self, name: &str) -> Option<PathBuf> {
+        if let Ok(cwd) = std::env::current_dir() {
+            let local_service = cwd.join("services").join(name);
+            if local_service.join("service.yaml").exists() {
+                tracing::debug!(
+                    "Found service '{}' in local directory: {}",
+                    name,
+                    local_service.display()
+                );
+                return Some(local_service);
+            }
+        }
+        None
+    }
+
     /// Check if a service is installed in the local cache.
     pub fn is_installed(&self, name: &str) -> bool {
         let service_dir = self.services_dir.join(name);
@@ -88,7 +105,18 @@ impl ServiceRegistry {
     }
 
     /// Get a service, optionally auto-installing it if missing.
+    ///
+    /// Priority order:
+    /// 1. Local working directory (./services/{name}) - for development/CI
+    /// 2. Services cache (~/.doubleagent/services/{name})
+    /// 3. Fetch from remote repository (if auto_install is true)
     pub fn get_or_install(&self, name: &str, auto_install: bool) -> Result<ServiceDefinition> {
+        // First, check local working directory (highest priority)
+        if let Some(local_path) = self.find_local_service(name) {
+            return self.load_service_from_path(&local_path);
+        }
+
+        // Then check cache
         if !self.is_installed(name) {
             if auto_install {
                 tracing::info!(
@@ -107,24 +135,34 @@ impl ServiceRegistry {
         self.get(name)
     }
 
-    /// Get a service definition from the local cache.
-    pub fn get(&self, name: &str) -> Result<ServiceDefinition> {
-        let service_dir = self.services_dir.join(name);
+    /// Load a service definition from a specific path.
+    fn load_service_from_path(&self, service_dir: &Path) -> Result<ServiceDefinition> {
         let service_yaml = service_dir.join("service.yaml");
 
         if !service_yaml.exists() {
             return Err(Error::ServiceNotFound(format!(
-                "Service '{}' not installed. Run 'doubleagent add {}' to install it, \
-                 or 'doubleagent list --remote' to see available services.",
-                name, name
+                "service.yaml not found at {}",
+                service_yaml.display()
             )));
         }
 
         let content = fs::read_to_string(&service_yaml)?;
         let mut service: ServiceDefinition = serde_yaml::from_str(&content)?;
-        service.path = service_dir;
+        service.path = service_dir.to_path_buf();
 
         Ok(service)
+    }
+
+    /// Get a service definition from the local cache.
+    pub fn get(&self, name: &str) -> Result<ServiceDefinition> {
+        let service_dir = self.services_dir.join(name);
+        self.load_service_from_path(&service_dir).map_err(|_| {
+            Error::ServiceNotFound(format!(
+                "Service '{}' not installed. Run 'doubleagent add {}' to install it, \
+                 or 'doubleagent list --remote' to see available services.",
+                name, name
+            ))
+        })
     }
 
     /// List all installed services from the local cache.
