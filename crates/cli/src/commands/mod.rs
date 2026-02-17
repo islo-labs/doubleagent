@@ -1,4 +1,5 @@
 pub mod add;
+pub mod completions;
 pub mod contract;
 pub mod list;
 pub mod reset;
@@ -10,6 +11,7 @@ pub mod stop;
 pub mod update;
 
 use clap::{Parser, Subcommand};
+use clap_complete::Shell;
 
 #[derive(Parser)]
 #[command(name = "doubleagent")]
@@ -50,6 +52,13 @@ pub enum Commands {
 
     /// Run a command with services started and env vars set
     Run(RunArgs),
+
+    /// Generate shell completions
+    Completions {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: Shell,
+    },
 }
 
 #[derive(Parser)]

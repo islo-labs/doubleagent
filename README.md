@@ -139,6 +139,26 @@ doubleagent start github slack
 | Auth0 | 🚧 Coming soon | auth0-python |
 | Stripe | 🚧 Coming soon | stripe |
 
+## Shell Completions
+
+Generate shell completions to enable tab-completion for commands and options:
+
+```bash
+# Bash (add to ~/.bashrc)
+doubleagent completions bash >> ~/.bashrc
+
+# Zsh (add to ~/.zshrc)
+doubleagent completions zsh >> ~/.zshrc
+
+# Fish
+doubleagent completions fish > ~/.config/fish/completions/doubleagent.fish
+
+# PowerShell (add to $PROFILE)
+doubleagent completions powershell >> $PROFILE
+```
+
+After adding completions, restart your shell or source the config file.
+
 ## Contributing
 
 1. Create `services/<name>/`
