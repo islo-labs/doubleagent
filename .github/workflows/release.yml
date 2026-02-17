@@ -77,12 +77,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Build release binary
-        run: cargo build --release
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Package binary
         run: |
           mkdir -p release
-          cp target/release/${{ env.BINARY_NAME }} release/
+          cp target/${{ matrix.target }}/release/${{ env.BINARY_NAME }} release/
           cd release
           tar -czvf ${{ env.BINARY_NAME }}-${{ steps.tag.outputs.VERSION }}-${{ matrix.target }}.tar.gz ${{ env.BINARY_NAME }}
 
