@@ -134,6 +134,7 @@ doubleagent start github slack
 |---------|--------|--------------|
 | GitHub | ✅ Available | PyGithub, octokit |
 | Slack | ✅ Available | slack_sdk |
+| Descope | ✅ Available | descope |
 | Jira | 🚧 Coming soon | atlassian-python-api |
 | Okta | 🚧 Coming soon | okta |
 | Auth0 | 🚧 Coming soon | auth0-python |

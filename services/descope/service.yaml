@@ -3,6 +3,25 @@ version: "1.0"
 description: Descope Authentication & User Management API fake
 docs: https://docs.descope.com/api
 
+brief: |
+  Descope is an identity management platform providing authentication,
+  authorization, and user management. Its API handles user CRUD, tenant
+  management, role and permission assignment, access key exchange (M2M),
+  OTP sign-up/sign-in flows, and RS256 JWT issuance with JWKS.
+
+  This fake implements the core Descope Management and Authentication API
+  endpoints that AI agents typically use: user and tenant CRUD, role/permission
+  management, access key exchange, OTP flows, and JWKS-based token verification.
+
+supported_flows:
+  - CRUD operations on users
+  - CRUD operations on tenants
+  - CRUD operations on roles and permissions
+  - User-role and user-tenant assignment
+  - Access key exchange (M2M auth)
+  - OTP sign-up, sign-in, and verify (email)
+  - JWKS-based JWT verification
+
 server:
   command: ["uv", "run", "python", "main.py"]
 
