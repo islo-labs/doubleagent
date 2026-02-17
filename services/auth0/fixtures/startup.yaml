@@ -1,0 +1,31 @@
+# Tier 2 fixture: "startup" — a small tenant with basic users, roles, and one connection.
+# Usage: doubleagent seed auth0 --fixture startup
+
+users:
+  - email: admin@acme.local
+    name: Admin User
+    email_verified: true
+    connection: Username-Password-Authentication
+    app_metadata:
+      role: admin
+  - email: developer@acme.local
+    name: Dev User
+    email_verified: true
+    connection: Username-Password-Authentication
+  - email: viewer@acme.local
+    name: View-Only User
+    email_verified: false
+    connection: Username-Password-Authentication
+
+roles:
+  - name: admin
+    description: Full access to all resources
+  - name: developer
+    description: Read/write access to development resources
+  - name: viewer
+    description: Read-only access
+
+connections:
+  - name: Username-Password-Authentication
+    strategy: auth0
+    enabled_clients: ["default-app"]
