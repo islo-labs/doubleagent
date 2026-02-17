@@ -1,0 +1,33 @@
+name: auth0
+version: "1.0"
+description: Auth0 Management & Authentication API fake
+docs: https://auth0.com/docs/api
+
+brief: |
+  Auth0 is an identity platform providing authentication and authorization
+  services. Its Management API (v2) handles users, roles, connections, and
+  permissions. Its Authentication API handles OAuth2 flows, token issuance,
+  JWKS, and userinfo.
+
+  This fake implements the core Management and Authentication API endpoints
+  that AI agents typically use: user CRUD, role assignment, client_credentials
+  and ROPC token flows, JWKS-based verification, and userinfo.
+
+supported_flows:
+  - CRUD operations on users
+  - CRUD operations on roles
+  - User-role assignment
+  - Client credentials token flow
+  - Resource Owner Password Credentials (ROPC) flow
+  - JWKS-based token verification
+  - OpenID Connect discovery
+server:
+  command: ["uv", "run", "python", "main.py"]
+
+contracts:
+  command: ["uv", "run", "pytest", "-v", "--tb=short"]
+
+# Environment variables set by the CLI when running contract tests:
+#   DOUBLEAGENT_AUTH0_URL - URL of the running fake service (set automatically)
+#   PORT - Port the service listens on (set automatically)
+

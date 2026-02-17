@@ -1,0 +1,12 @@
+[project]
+name = "auth0-fake"
+version = "1.0.0"
+description = "Auth0 Management & Authentication API fake for DoubleAgent"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "pydantic>=2.0.0",
+    "pyjwt[crypto]>=2.8.0",
+    "cryptography>=42.0.0",
+]
