@@ -1,7 +1,7 @@
 use super::AddArgs;
 use crate::project_config::ProjectConfig;
 use colored::Colorize;
-use doubleagent_core::{Config, ServiceRegistry};
+use doubleagent_core::{mise, Config, ServiceRegistry};
 
 pub async fn run(args: AddArgs) -> anyhow::Result<()> {
     let config = Config::load()?;
@@ -59,6 +59,10 @@ pub async fn run(args: AddArgs) -> anyhow::Result<()> {
 
         match registry.add(service_name) {
             Ok(path) => {
+                // Auto-trust mise config to avoid prompts on start
+                if let Err(e) = mise::trust_config(&path) {
+                    tracing::warn!("Failed to trust mise config: {}", e);
+                }
                 println!("{}", "✓".green());
                 println!(
                     "    {} Installed to {}",
