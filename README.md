@@ -137,7 +137,7 @@ doubleagent start github slack
 | Jira | 🚧 Coming soon | atlassian-python-api |
 | Okta | 🚧 Coming soon | okta |
 | Auth0 | ✅ Available | auth0-python |
-| Stripe | 🚧 Coming soon | stripe |
+| Stripe | ✅ Available | stripe |
 
 ## Contributing
 
