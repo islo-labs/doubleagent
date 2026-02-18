@@ -1,6 +1,6 @@
 use super::SeedArgs;
 use colored::Colorize;
-use doubleagent_core::{Config, ProcessManager};
+use doubleagent_core::{snapshot, Config, ProcessManager};
 use std::fs;
 
 pub async fn run(args: SeedArgs) -> anyhow::Result<()> {
@@ -11,12 +11,25 @@ pub async fn run(args: SeedArgs) -> anyhow::Result<()> {
         .get_info(&args.service)
         .ok_or_else(|| anyhow::anyhow!("{} is not running", args.service))?;
 
-    // Read and parse seed file
-    let content = fs::read_to_string(&args.file)?;
-    let data: serde_json::Value = if args.file.ends_with(".yaml") || args.file.ends_with(".yml") {
-        serde_yaml::from_str(&content)?
+    if args.file.is_some() && args.snapshot.is_some() {
+        return Err(anyhow::anyhow!(
+            "Use either a seed file or --snapshot, not both"
+        ));
+    }
+
+    let data: serde_json::Value = if let Some(profile) = args.snapshot.as_deref() {
+        snapshot::load_seed_payload(&args.service, profile)?
+    } else if let Some(file) = args.file.as_deref() {
+        let content = fs::read_to_string(file)?;
+        if file.ends_with(".yaml") || file.ends_with(".yml") {
+            serde_yaml::from_str(&content)?
+        } else {
+            serde_json::from_str(&content)?
+        }
     } else {
-        serde_json::from_str(&content)?
+        return Err(anyhow::anyhow!(
+            "Seed file path is required (or use --snapshot <profile>)"
+        ));
     };
 
     print!("{} Seeding {}...", "⬆".blue(), args.service);
