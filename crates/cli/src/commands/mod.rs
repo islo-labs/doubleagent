@@ -4,6 +4,7 @@ pub mod list;
 pub mod reset;
 pub mod run;
 pub mod seed;
+pub mod snapshot;
 pub mod start;
 pub mod status;
 pub mod stop;
@@ -50,6 +51,9 @@ pub enum Commands {
 
     /// Run a command with services started and env vars set
     Run(RunArgs),
+
+    /// Manage snapshot profiles (pull, list, inspect, delete)
+    Snapshot(SnapshotArgs),
 }
 
 #[derive(Parser)]
@@ -74,6 +78,10 @@ pub struct StartArgs {
     /// Start a service from a local directory (for development/testing)
     #[arg(short, long)]
     pub local: Option<String>,
+
+    /// Load a snapshot profile as the baseline state
+    #[arg(long)]
+    pub snapshot: Option<String>,
 }
 
 #[derive(Parser)]
@@ -106,8 +114,12 @@ pub struct SeedArgs {
     /// Service to seed
     pub service: String,
 
-    /// Path to seed data file (YAML or JSON)
-    pub file: String,
+    /// Path to seed data file (YAML or JSON). Omit when using --fixture.
+    pub file: Option<String>,
+
+    /// Use a bundled fixture pack (e.g., "startup", "enterprise")
+    #[arg(long)]
+    pub fixture: Option<String>,
 }
 
 #[derive(Parser)]
@@ -130,7 +142,105 @@ pub struct RunArgs {
     #[arg(short, long)]
     pub keep: bool,
 
+    /// Load a snapshot profile as the baseline state
+    #[arg(long)]
+    pub snapshot: Option<String>,
+
     /// Command to run (everything after --)
     #[arg(last = true, required = true)]
     pub command: Vec<String>,
+}
+
+// ---------------------------------------------------------------------------
+// Snapshot subcommands
+// ---------------------------------------------------------------------------
+
+#[derive(Parser)]
+pub struct SnapshotArgs {
+    #[command(subcommand)]
+    pub command: SnapshotCommands,
+}
+
+#[derive(Subcommand)]
+pub enum SnapshotCommands {
+    /// Pull a snapshot from a real SaaS API (read-only)
+    Pull(SnapshotPullArgs),
+
+    /// List available snapshot profiles
+    List(SnapshotListArgs),
+
+    /// Inspect a snapshot's manifest
+    Inspect(SnapshotInspectArgs),
+
+    /// Delete a snapshot profile
+    Delete(SnapshotDeleteArgs),
+
+    /// Push a snapshot to a shared registry (S3/GCS)
+    Push(SnapshotPushArgs),
+}
+
+#[derive(Parser)]
+pub struct SnapshotPushArgs {
+    /// Service name
+    pub service: String,
+
+    /// Profile name
+    #[arg(long, short)]
+    pub profile: String,
+
+    /// Registry URL (e.g., s3://bucket/prefix or gs://bucket/prefix)
+    #[arg(long, short)]
+    pub registry: String,
+}
+
+#[derive(Parser)]
+pub struct SnapshotPullArgs {
+    /// Service to pull snapshot for (e.g., github)
+    pub service: String,
+
+    /// Snapshot profile name
+    #[arg(long, short)]
+    pub profile: Option<String>,
+
+    /// Maximum number of resources to pull per type
+    #[arg(long, short)]
+    pub limit: Option<u32>,
+
+    /// Disable PII redaction (NOT recommended)
+    #[arg(long)]
+    pub no_redact: bool,
+
+    /// Incremental: merge new data into existing snapshot (skip duplicates)
+    #[arg(long)]
+    pub incremental: bool,
+
+    /// Airbyte backend: "pyairbyte" (default, no Docker) or "docker"
+    #[arg(long)]
+    pub backend: Option<String>,
+}
+
+#[derive(Parser)]
+pub struct SnapshotListArgs {
+    /// Filter by service name
+    pub service: Option<String>,
+}
+
+#[derive(Parser)]
+pub struct SnapshotInspectArgs {
+    /// Service name
+    pub service: String,
+
+    /// Profile name
+    #[arg(long, short)]
+    pub profile: String,
+}
+
+#[derive(Parser)]
+pub struct SnapshotDeleteArgs {
+    /// Service name
+    pub service: String,
+
+    /// Profile name
+    #[arg(long, short)]
+    pub profile: String,
 }

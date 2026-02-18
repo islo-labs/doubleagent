@@ -45,6 +45,9 @@ async fn run() -> anyhow::Result<()> {
         }
         commands::Commands::Update(args) => run_command!("update", commands::update::run(args)),
         commands::Commands::Run(args) => run_command!("run", commands::run::run(args)),
+        commands::Commands::Snapshot(args) => {
+            run_command!("snapshot", commands::snapshot::run(args))
+        }
     }
 }
 

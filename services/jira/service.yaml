@@ -1,0 +1,89 @@
+# Jira fake — uses Airbyte source-jira connector for snapshot pulling.
+#
+# No custom connector code needed! The Airbyte adapter handles everything:
+#   1. Runs `docker run airbyte/source-jira:latest discover` to find streams
+#   2. Runs `docker run airbyte/source-jira:latest read` to pull records
+#   3. Parses JSONL output, groups by stream, applies PII redaction
+#   4. Saves as a DoubleAgent snapshot
+#
+# Usage:
+#   export JIRA_API_TOKEN=your-api-token
+#   export JIRA_DOMAIN=yourcompany.atlassian.net
+#   export JIRA_EMAIL=you@company.com
+#   doubleagent snapshot pull jira
+#
+# The fake server (when built) will serve these snapshots as a local Jira API.
+
+name: jira
+version: "0.1"
+description: "Jira Cloud API fake (Airbyte-backed snapshot connector)"
+docs: https://developer.atlassian.com/cloud/jira/platform/rest/v3/
+
+server:
+  command: ["uv", "run", "python", "main.py"]
+
+connector:
+  type: airbyte
+  image: airbyte/source-jira:latest
+
+  # Which Airbyte streams to pull (subset of the 40+ Jira streams)
+  streams:
+    - projects
+    - issues
+    - users
+    - sprints
+    - boards
+    - issue_comments
+    - issue_fields
+    - workflows
+
+  # Map env vars → Airbyte connector config JSON paths
+  # (Airbyte source-jira expects these in its config)
+  config_env:
+    JIRA_API_TOKEN: api_token
+    JIRA_DOMAIN: domain
+    JIRA_EMAIL: email
+
+  # Map Airbyte stream names → DoubleAgent resource types
+  # (keeps our naming consistent across services)
+  stream_mapping:
+    projects: projects
+    issues: issues
+    users: users
+    sprints: sprints
+    boards: boards
+    issue_comments: comments
+    issue_fields: fields
+    workflows: workflows
+
+  # Smart seeding: pull a small, relationally-consistent dataset
+  # Projects → issues → comments, with per-parent limits
+  seeding:
+    default_limit: 50
+    seed_streams:
+      - stream: projects
+        limit: 3
+        follow:
+          - child_stream: issues
+            foreign_key: project_id
+            limit_per_parent: 10
+          - child_stream: sprints
+            foreign_key: boardId
+            limit_per_parent: 5
+          - child_stream: boards
+            foreign_key: projectId
+            limit_per_parent: 3
+      - stream: issues
+        follow:
+          - child_stream: issue_comments
+            foreign_key: issueId
+            limit_per_parent: 5
+      - stream: users
+        limit: 20
+      - stream: workflows
+        limit: 10
+
+  required_env:
+    - JIRA_API_TOKEN
+    - JIRA_DOMAIN
+    - JIRA_EMAIL
