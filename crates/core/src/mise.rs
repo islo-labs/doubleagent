@@ -31,6 +31,34 @@ pub fn check_mise_installed() -> Result<()> {
     Ok(())
 }
 
+/// Trust the .mise.toml config file for a service
+///
+/// Mise requires explicit trust for config files outside of ~/.config/mise.
+/// This should be called after adding a service to avoid trust prompts on start.
+pub fn trust_config(service_path: &Path) -> Result<()> {
+    let mise_toml = service_path.join(".mise.toml");
+    if !mise_toml.exists() {
+        return Ok(());
+    }
+
+    if !is_mise_installed() {
+        // Skip trust if mise isn't installed yet - will be handled on first start
+        return Ok(());
+    }
+
+    let status = Command::new("mise")
+        .args(["trust", &mise_toml.to_string_lossy()])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()?;
+
+    if !status.success() {
+        tracing::warn!("Failed to trust mise config at {:?}", mise_toml);
+    }
+
+    Ok(())
+}
+
 /// Install mise tools defined in .mise.toml
 ///
 /// Runs `mise install` in the service directory to ensure all required tools
@@ -192,5 +220,23 @@ mod tests {
             assert!(msg.contains("mise not found"));
             assert!(msg.contains("curl https://mise.run | sh"));
         }
+    }
+
+    #[test]
+    fn test_trust_config_no_mise_toml() {
+        let dir = tempdir().unwrap();
+        // Should succeed silently when no .mise.toml exists
+        assert!(trust_config(dir.path()).is_ok());
+    }
+
+    #[test]
+    fn test_trust_config_with_mise_toml() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join(".mise.toml"), "[tools]\npython = \"3.11\"").unwrap();
+
+        // If mise is installed, trust should succeed
+        // If not, it should skip silently
+        let result = trust_config(dir.path());
+        assert!(result.is_ok());
     }
 }
