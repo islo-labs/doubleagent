@@ -30,9 +30,41 @@ pub struct ServiceDefinition {
     pub server: ServerConfig,
     /// Contract test configuration
     pub contracts: Option<ContractsConfig>,
+    /// Snapshot connector configuration
+    pub connector: Option<ConnectorConfig>,
     /// Path to the service directory (not serialized)
     #[serde(skip)]
     pub path: PathBuf,
+}
+
+/// Connector configuration for snapshot pulls.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectorConfig {
+    /// Connector type: "native" or "airbyte" (default: "native")
+    #[serde(default = "default_connector_type")]
+    pub r#type: String,
+    /// Airbyte source image (for type: airbyte)
+    pub image: Option<String>,
+    /// Streams to pull (empty means connector default)
+    #[serde(default)]
+    pub streams: Vec<String>,
+    /// Mapping of env var name -> connector config path
+    #[serde(default)]
+    pub config_env: HashMap<String, String>,
+    /// Mapping of raw stream name -> resource name for seed payload
+    #[serde(default)]
+    pub stream_mapping: HashMap<String, String>,
+    /// Required environment variables for pulling data
+    #[serde(default)]
+    pub required_env: Vec<String>,
+    /// Optional backend hint (for example: "pyairbyte")
+    pub backend: Option<String>,
+    /// Optional smart seeding config passed to pull helpers
+    pub seeding: Option<serde_json::Value>,
+}
+
+fn default_connector_type() -> String {
+    "native".to_string()
 }
 
 /// Server configuration for a service.

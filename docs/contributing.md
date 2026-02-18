@@ -109,6 +109,19 @@ contracts:
 env:
   API_URL: "http://localhost:${port}"
   API_TOKEN: "doubleagent-fake-token"
+
+# Optional: enable snapshot pulls via Airbyte
+connector:
+  type: airbyte
+  image: airbyte/source-your-service:latest
+  streams:
+    - resources
+  config_env:
+    YOUR_TOKEN_ENV: credentials.api_token
+  stream_mapping:
+    resources: resources
+  required_env:
+    - YOUR_TOKEN_ENV
 ```
 
 **.mise.toml** - Toolchain requirements (in service root):

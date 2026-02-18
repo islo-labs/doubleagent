@@ -4,6 +4,7 @@ pub mod list;
 pub mod reset;
 pub mod run;
 pub mod seed;
+pub mod snapshot;
 pub mod start;
 pub mod status;
 pub mod stop;
@@ -50,6 +51,9 @@ pub enum Commands {
 
     /// Run a command with services started and env vars set
     Run(RunArgs),
+
+    /// Pull and manage snapshot profiles
+    Snapshot(SnapshotArgs),
 }
 
 #[derive(Parser)]
@@ -107,7 +111,11 @@ pub struct SeedArgs {
     pub service: String,
 
     /// Path to seed data file (YAML or JSON)
-    pub file: String,
+    pub file: Option<String>,
+
+    /// Seed from snapshot profile (uses ~/.doubleagent/snapshots/<service>/<profile>/seed.json)
+    #[arg(long)]
+    pub snapshot: Option<String>,
 }
 
 #[derive(Parser)]
@@ -133,4 +141,74 @@ pub struct RunArgs {
     /// Command to run (everything after --)
     #[arg(last = true, required = true)]
     pub command: Vec<String>,
+}
+
+#[derive(Parser)]
+pub struct SnapshotArgs {
+    #[command(subcommand)]
+    pub command: SnapshotCommands,
+}
+
+#[derive(Subcommand)]
+pub enum SnapshotCommands {
+    /// Pull a snapshot profile from a configured connector
+    Pull(SnapshotPullArgs),
+    /// List available snapshot profiles
+    List(SnapshotListArgs),
+    /// Print a snapshot manifest as JSON
+    Inspect(SnapshotInspectArgs),
+    /// Delete a snapshot profile
+    Delete(SnapshotDeleteArgs),
+}
+
+#[derive(Parser)]
+pub struct SnapshotPullArgs {
+    /// Service to pull a snapshot for
+    pub service: String,
+
+    /// Snapshot profile name
+    #[arg(long, short)]
+    pub profile: Option<String>,
+
+    /// Max records per stream
+    #[arg(long, short)]
+    pub limit: Option<u32>,
+
+    /// Disable redaction
+    #[arg(long)]
+    pub no_redact: bool,
+
+    /// Merge into existing snapshot profile by id
+    #[arg(long)]
+    pub incremental: bool,
+
+    /// Force backend ("pyairbyte")
+    #[arg(long)]
+    pub backend: Option<String>,
+}
+
+#[derive(Parser)]
+pub struct SnapshotListArgs {
+    /// Filter by service
+    pub service: Option<String>,
+}
+
+#[derive(Parser)]
+pub struct SnapshotInspectArgs {
+    /// Service name
+    pub service: String,
+
+    /// Snapshot profile name
+    #[arg(long, short)]
+    pub profile: String,
+}
+
+#[derive(Parser)]
+pub struct SnapshotDeleteArgs {
+    /// Service name
+    pub service: String,
+
+    /// Snapshot profile name
+    #[arg(long, short)]
+    pub profile: String,
 }
