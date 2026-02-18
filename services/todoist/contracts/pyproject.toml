@@ -1,0 +1,16 @@
+[project]
+name = "todoist-doubleagent-contracts"
+version = "0.1.0"
+description = "Contract tests for Todoist DoubleAgent fake service"
+requires-python = ">=3.11"
+dependencies = [
+    "todoist-api-python>=2.0.0",
+    "pytest>=8.0.0",
+    "requests>=2.31.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+markers = [
+    "fake_only: test only runs against the fake (skipped in grounding mode)",
+]
