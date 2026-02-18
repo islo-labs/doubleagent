@@ -1,0 +1,10 @@
+[project]
+name = "todoist-fake"
+version = "1.0.0"
+description = "Todoist API fake for DoubleAgent"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "pydantic>=2.0.0",
+]
