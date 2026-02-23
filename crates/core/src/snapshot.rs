@@ -123,3 +123,149 @@ pub fn delete_snapshot(service: &str, profile: &str) -> Result<bool> {
         Ok(false)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_lock() -> &'static Mutex<()> {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        ENV_LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    struct EnvGuard {
+        key: &'static str,
+        old: Option<String>,
+    }
+
+    impl EnvGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            let old = std::env::var(key).ok();
+            std::env::set_var(key, value);
+            Self { key, old }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            if let Some(old) = self.old.take() {
+                std::env::set_var(self.key, old);
+            } else {
+                std::env::remove_var(self.key);
+            }
+        }
+    }
+
+    fn write_manifest(service: &str, profile: &str, pulled_at: f64) {
+        let dir = snapshot_dir(service, profile);
+        fs::create_dir_all(&dir).unwrap();
+        let manifest = SnapshotManifest {
+            service: service.to_string(),
+            profile: profile.to_string(),
+            version: 1,
+            pulled_at,
+            connector: "airbyte:test".to_string(),
+            redacted: true,
+            resource_counts: HashMap::from([("issues".to_string(), 3)]),
+        };
+        fs::write(
+            dir.join("manifest.json"),
+            serde_json::to_string(&manifest).unwrap(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn default_snapshots_dir_uses_override() {
+        let _guard = env_lock().lock().unwrap();
+        let temp = tempdir().unwrap();
+        let expected = temp.path().join("snapshots-root");
+        let _env = EnvGuard::set("DOUBLEAGENT_SNAPSHOTS_DIR", expected.to_str().unwrap());
+        assert_eq!(default_snapshots_dir(), expected);
+    }
+
+    #[test]
+    fn compliance_mode_only_accepts_strict() {
+        let _guard = env_lock().lock().unwrap();
+
+        let _env = EnvGuard::set("DOUBLEAGENT_COMPLIANCE_MODE", "strict");
+        assert!(is_compliance_mode());
+
+        let _env = EnvGuard::set("DOUBLEAGENT_COMPLIANCE_MODE", "warn");
+        assert!(!is_compliance_mode());
+    }
+
+    #[test]
+    fn list_snapshots_returns_newest_first() {
+        let _guard = env_lock().lock().unwrap();
+        let temp = tempdir().unwrap();
+        let _env = EnvGuard::set("DOUBLEAGENT_SNAPSHOTS_DIR", temp.path().to_str().unwrap());
+
+        write_manifest("github", "older", 100.0);
+        write_manifest("github", "newer", 200.0);
+        write_manifest("slack", "middle", 150.0);
+
+        let list = list_snapshots(None).unwrap();
+        let keys: Vec<(String, String)> = list
+            .iter()
+            .map(|m| (m.service.clone(), m.profile.clone()))
+            .collect();
+        assert_eq!(
+            keys,
+            vec![
+                ("github".to_string(), "newer".to_string()),
+                ("slack".to_string(), "middle".to_string()),
+                ("github".to_string(), "older".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn list_snapshots_can_filter_by_service() {
+        let _guard = env_lock().lock().unwrap();
+        let temp = tempdir().unwrap();
+        let _env = EnvGuard::set("DOUBLEAGENT_SNAPSHOTS_DIR", temp.path().to_str().unwrap());
+
+        write_manifest("github", "default", 100.0);
+        write_manifest("slack", "default", 200.0);
+
+        let list = list_snapshots(Some("github")).unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].service, "github");
+    }
+
+    #[test]
+    fn load_manifest_and_seed_payload_report_missing() {
+        let _guard = env_lock().lock().unwrap();
+        let temp = tempdir().unwrap();
+        let _env = EnvGuard::set("DOUBLEAGENT_SNAPSHOTS_DIR", temp.path().to_str().unwrap());
+
+        let missing_manifest = load_manifest("github", "missing").unwrap_err().to_string();
+        assert!(missing_manifest.contains("Snapshot 'github/missing' not found"));
+
+        let dir = snapshot_dir("github", "default");
+        fs::create_dir_all(&dir).unwrap();
+        let missing_seed = load_seed_payload("github", "default")
+            .unwrap_err()
+            .to_string();
+        assert!(missing_seed.contains("Snapshot seed payload not found"));
+    }
+
+    #[test]
+    fn delete_snapshot_returns_true_then_false() {
+        let _guard = env_lock().lock().unwrap();
+        let temp = tempdir().unwrap();
+        let _env = EnvGuard::set("DOUBLEAGENT_SNAPSHOTS_DIR", temp.path().to_str().unwrap());
+
+        let dir = snapshot_dir("github", "default");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("seed.json"), r#"{"issues":[]}"#).unwrap();
+
+        assert!(delete_snapshot("github", "default").unwrap());
+        assert!(!delete_snapshot("github", "default").unwrap());
+    }
+}
