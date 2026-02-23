@@ -7,18 +7,12 @@ use std::path::PathBuf;
 /// Resolve the seed data file path from args.
 ///
 /// Priority: --snapshot > --fixture (resolves via service fixtures dir) > --file (explicit path).
-fn resolve_seed_source(
-    args: &SeedArgs,
-    config: &Config,
-) -> anyhow::Result<SeedSource> {
-    let flags_set = args.snapshot.is_some() as u8
-        + args.fixture.is_some() as u8
-        + args.file.is_some() as u8;
+fn resolve_seed_source(args: &SeedArgs, config: &Config) -> anyhow::Result<SeedSource> {
+    let flags_set =
+        args.snapshot.is_some() as u8 + args.fixture.is_some() as u8 + args.file.is_some() as u8;
 
     if flags_set > 1 {
-        anyhow::bail!(
-            "Use only one of: --snapshot, --fixture, or a file path"
-        );
+        anyhow::bail!("Use only one of: --snapshot, --fixture, or a file path");
     }
 
     if let Some(ref profile) = args.snapshot {
