@@ -22,7 +22,8 @@ fn resolve_seed_source(args: &SeedArgs, config: &Config) -> anyhow::Result<SeedS
     if let Some(ref fixture_name) = args.fixture {
         let registry =
             ServiceRegistry::new(&config.services_dir, &config.repo_url, &config.branch)?;
-        let service = registry.get(&args.service)?;
+        // Use local-aware resolution so fixture seeding works in repo/CI without prior install.
+        let service = registry.get_or_install(&args.service, false)?;
         let fixture_path = service
             .path
             .join("fixtures")
