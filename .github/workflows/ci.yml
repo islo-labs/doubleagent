@@ -68,10 +68,10 @@ jobs:
       services: ${{ steps.discover.outputs.services }}
     steps:
       - uses: actions/checkout@v4
-      - name: Find services with service.yaml
+      - name: Find services with contract tests
         id: discover
         run: |
-          services=$(ls -d services/*/service.yaml 2>/dev/null | xargs -I {} dirname {} | xargs -I {} basename {} | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          services=$(for d in services/*/; do [ -f "$d/service.yaml" ] && [ -d "$d/contracts" ] && basename "$d"; done | jq -R -s -c 'split("\n") | map(select(length > 0))')
           echo "services=$services" >> $GITHUB_OUTPUT
 
   contracts:
