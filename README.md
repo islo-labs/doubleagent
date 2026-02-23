@@ -46,7 +46,8 @@ doubleagent start github slack        # Multiple services
 doubleagent status                    # Show running services
 doubleagent stop                      # Stop all
 doubleagent reset github              # Clear state
-doubleagent seed github ./data.yaml   # Load fixtures
+doubleagent seed github ./data.yaml         # Load from file
+doubleagent seed github --fixture startup   # Load from service fixtures/ dir
 doubleagent seed github --snapshot default  # Seed from pulled snapshot
 
 doubleagent snapshot pull github      # Pull snapshot from configured connector
@@ -159,10 +160,11 @@ doubleagent start github slack
 | GitHub | ✅ Available | PyGithub, octokit |
 | Slack | ✅ Available | slack_sdk |
 | Descope | ✅ Available | descope |
-| Jira | 🚧 Coming soon | atlassian-python-api |
-| Okta | 🚧 Coming soon | okta |
 | Auth0 | ✅ Available | auth0-python |
 | Stripe | ✅ Available | stripe |
+| Jira | ✅ Available (snapshot) | atlassian-python-api |
+| Salesforce | ✅ Available (snapshot) | simple-salesforce |
+| Okta | 🚧 Coming soon | okta |
 
 ## Contributing
 
