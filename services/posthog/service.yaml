@@ -1,0 +1,29 @@
+name: posthog
+version: "1.0"
+description: PostHog Analytics API fake
+docs: https://posthog.com/docs/api
+
+brief: |
+  PostHog is a product analytics platform for tracking user events,
+  managing feature flags, and understanding user behavior. Its API
+  provides endpoints for event capture, user/group identification,
+  and feature flag evaluation.
+
+  This fake implements the core PostHog API endpoints that AI agents
+  typically use: batch event ingestion, feature flag evaluation,
+  and user/group identification derived from captured events.
+
+supported_flows:
+  - Event capture (batch ingestion)
+  - Feature flag evaluation
+  - User and group identification
+
+server:
+  command: ["uv", "run", "python", "main.py"]
+
+contracts:
+  command: ["uv", "run", "pytest", "-v", "--tb=short"]
+
+# Environment variables set by the CLI when running contract tests:
+#   DOUBLEAGENT_POSTHOG_URL - URL of the running fake service (set automatically)
+#   PORT - Port the service listens on (set automatically)
