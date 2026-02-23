@@ -9,9 +9,12 @@ pub mod git;
 pub mod mise;
 pub mod process;
 pub mod service;
+pub mod snapshot;
 
 // Re-exports for convenience
 pub use config::Config;
 pub use error::{Error, Result};
 pub use process::{ProcessManager, ServiceInfo};
-pub use service::{ContractsConfig, ServerConfig, ServiceDefinition, ServiceRegistry};
+pub use service::{
+    ConnectorConfig, ContractsConfig, ServerConfig, ServiceDefinition, ServiceRegistry,
+};
