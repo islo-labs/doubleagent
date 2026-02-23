@@ -116,6 +116,10 @@ pub struct SeedArgs {
     /// Seed from snapshot profile (uses ~/.doubleagent/snapshots/<service>/<profile>/seed.json)
     #[arg(long)]
     pub snapshot: Option<String>,
+
+    /// Name of a fixture in the service's fixtures/ directory (e.g. "startup")
+    #[arg(long)]
+    pub fixture: Option<String>,
 }
 
 #[derive(Parser)]

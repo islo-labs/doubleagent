@@ -1,7 +1,77 @@
 use super::SeedArgs;
 use colored::Colorize;
-use doubleagent_core::{snapshot, Config, ProcessManager};
+use doubleagent_core::{snapshot, Config, ProcessManager, ServiceRegistry};
 use std::fs;
+use std::path::PathBuf;
+
+/// Resolve the seed data file path from args.
+///
+/// Priority: --snapshot > --fixture (resolves via service fixtures dir) > --file (explicit path).
+fn resolve_seed_source(
+    args: &SeedArgs,
+    config: &Config,
+) -> anyhow::Result<SeedSource> {
+    let flags_set = args.snapshot.is_some() as u8
+        + args.fixture.is_some() as u8
+        + args.file.is_some() as u8;
+
+    if flags_set > 1 {
+        anyhow::bail!(
+            "Use only one of: --snapshot, --fixture, or a file path"
+        );
+    }
+
+    if let Some(ref profile) = args.snapshot {
+        return Ok(SeedSource::Snapshot(profile.clone()));
+    }
+
+    if let Some(ref fixture_name) = args.fixture {
+        let registry =
+            ServiceRegistry::new(&config.services_dir, &config.repo_url, &config.branch)?;
+        let service = registry.get(&args.service)?;
+        let fixture_path = service
+            .path
+            .join("fixtures")
+            .join(format!("{}.yaml", fixture_name));
+
+        if fixture_path.exists() {
+            return Ok(SeedSource::File(fixture_path));
+        }
+        // Try .yml extension
+        let yml_path = service
+            .path
+            .join("fixtures")
+            .join(format!("{}.yml", fixture_name));
+        if yml_path.exists() {
+            return Ok(SeedSource::File(yml_path));
+        }
+        anyhow::bail!(
+            "Fixture '{}' not found for service '{}' (looked in {})",
+            fixture_name,
+            args.service,
+            fixture_path.display()
+        );
+    }
+
+    if let Some(ref file_path) = args.file {
+        return Ok(SeedSource::File(PathBuf::from(file_path)));
+    }
+
+    anyhow::bail!(
+        "A seed source is required.\n\
+         Usage: doubleagent seed {} --snapshot default\n\
+         Usage: doubleagent seed {} --fixture startup\n\
+         Usage: doubleagent seed {} path/to/data.yaml",
+        args.service,
+        args.service,
+        args.service
+    )
+}
+
+enum SeedSource {
+    Snapshot(String),
+    File(PathBuf),
+}
 
 pub async fn run(args: SeedArgs) -> anyhow::Result<()> {
     let config = Config::load()?;
@@ -11,28 +81,31 @@ pub async fn run(args: SeedArgs) -> anyhow::Result<()> {
         .get_info(&args.service)
         .ok_or_else(|| anyhow::anyhow!("{} is not running", args.service))?;
 
-    if args.file.is_some() && args.snapshot.is_some() {
-        return Err(anyhow::anyhow!(
-            "Use either a seed file or --snapshot, not both"
-        ));
-    }
+    let source = resolve_seed_source(&args, &config)?;
 
-    let data: serde_json::Value = if let Some(profile) = args.snapshot.as_deref() {
-        snapshot::load_seed_payload(&args.service, profile)?
-    } else if let Some(file) = args.file.as_deref() {
-        let content = fs::read_to_string(file)?;
-        if file.ends_with(".yaml") || file.ends_with(".yml") {
-            serde_yaml::from_str(&content)?
-        } else {
-            serde_json::from_str(&content)?
+    let (data, source_label): (serde_json::Value, String) = match source {
+        SeedSource::Snapshot(ref profile) => {
+            let payload = snapshot::load_seed_payload(&args.service, profile)?;
+            (payload, format!("snapshot:{}", profile))
         }
-    } else {
-        return Err(anyhow::anyhow!(
-            "Seed file path is required (or use --snapshot <profile>)"
-        ));
+        SeedSource::File(ref path) => {
+            let content = fs::read_to_string(path)?;
+            let file_str = path.to_string_lossy();
+            let parsed = if file_str.ends_with(".yaml") || file_str.ends_with(".yml") {
+                serde_yaml::from_str(&content)?
+            } else {
+                serde_json::from_str(&content)?
+            };
+            (parsed, path.display().to_string())
+        }
     };
 
-    print!("{} Seeding {}...", "⬆".blue(), args.service);
+    print!(
+        "{} Seeding {} from {}...",
+        "⬆".blue(),
+        args.service,
+        source_label
+    );
 
     let url = format!("http://localhost:{}/_doubleagent/seed", info.port);
     let client = reqwest::Client::new();
