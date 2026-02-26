@@ -1,0 +1,53 @@
+name: todoist
+version: '1.0'
+description: Task management and productivity SaaS API for creating, organizing, and
+  completing tasks within projects, sections, and labels.
+docs: https://developer.todoist.com/rest/v2/
+brief: 'Todoist is a popular task management and productivity application used by
+  millions of individuals and teams. It allows users to organize work into projects,
+  break tasks into subtasks, set priorities and due dates, attach labels for categorization,
+  add comments for collaboration, and track completion. The API (REST v2, with a newer
+  unified v1 also available) exposes full CRUD operations over tasks, projects, sections,
+  labels, and comments, plus specialized endpoints for closing/reopening tasks, quick-add
+  with natural language parsing, and filter-based querying.
+
+
+  This fake covers the core REST API v2 surface that AI agents most commonly interact
+  with: task lifecycle management (create, read, update, close, reopen, delete), project
+  and section organization, label management, comment threading on tasks, subtask
+  hierarchies, and cross-resource relationships. It models the key behavioral nuances
+  including priority value mapping (1=normal to 4=urgent), automatic Inbox assignment
+  for tasks without a project_id, subtask cascading on close/delete, recurring due
+  date rescheduling on close, and the due date object structure with recurring date
+  support.
+
+
+  Authentication is via Bearer token in the Authorization header. The API base URL
+  is https://api.todoist.com/rest/v2. Responses use JSON, with 204 No Content for
+  destructive/state-change operations (close, reopen, delete, archive). Error responses
+  include 400 (bad request), 403 (forbidden), 404 (not found), and 429 (rate limited).
+  Available color values include: berry_red, red, orange, yellow, olive_green, lime_green,
+  green, mint_green, teal, sky_blue, light_blue, blue, grape, violet, lavender, magenta,
+  salmon, charcoal, grey, and taupe.'
+supported_flows:
+- Task CRUD Lifecycle
+- Task Completion and Reopening
+- Project Management
+- Section Organization
+- Label Management
+- Comment Threading on Tasks and Projects
+- Subtask Hierarchy
+- Due Dates and Priorities
+- Task Filtering and Search
+- Cross-Resource Agent Workflows
+
+server:
+  command: ["uv", "run", "python", "main.py"]
+
+contracts:
+  command: ["uv", "run", "pytest", "-v", "--tb=short"]
+
+# Environment variables set by the CLI when running contract tests:
+#   DOUBLEAGENT_TODOIST_URL - URL of the running fake service (set automatically)
+#   TODOIST_GROUNDING_TOKEN - API token for grounding mode against the real Todoist API
+#   PORT - Port the service listens on (set automatically)
