@@ -30,3 +30,24 @@ contracts:
 
 features:
   webhooks: true
+
+# Optional snapshot pull connector configuration.
+# This enables: doubleagent snapshot pull github
+connector:
+  type: airbyte
+  image: airbyte/source-github:latest
+  streams:
+    - repositories
+    - issues
+    - pull_requests
+  config_env:
+    GITHUB_ACCESS_TOKEN: credentials.personal_access_token
+    GITHUB_REPOSITORY: repository
+  stream_mapping:
+    repositories: repos
+    issues: issues
+    pull_requests: pulls
+  required_env:
+    - GITHUB_ACCESS_TOKEN
+    - GITHUB_REPOSITORY
+  backend: pyairbyte

@@ -46,7 +46,14 @@ doubleagent start github slack        # Multiple services
 doubleagent status                    # Show running services
 doubleagent stop                      # Stop all
 doubleagent reset github              # Clear state
-doubleagent seed github ./data.yaml   # Load fixtures
+doubleagent seed github ./data.yaml         # Load from file
+doubleagent seed github --fixture startup   # Load from service fixtures/ dir
+doubleagent seed github --snapshot default  # Seed from pulled snapshot
+
+doubleagent snapshot pull github      # Pull snapshot from configured connector
+doubleagent snapshot list             # List local snapshots
+doubleagent snapshot inspect github -p default
+doubleagent snapshot delete github -p default
 ```
 
 When a service starts, the CLI prints the environment variable to use:
@@ -74,6 +81,24 @@ client = Github(
 repo = client.get_user().create_repo("test-repo")
 issue = repo.create_issue(title="Test issue")
 ```
+
+### Snapshot Pulls (Airbyte)
+
+`doubleagent snapshot pull <service>` reads connector config from `service.yaml`, pulls
+records from Airbyte, writes a local snapshot profile, and produces a seed payload at:
+
+`~/.doubleagent/snapshots/<service>/<profile>/seed.json`
+
+Typical workflow:
+
+```bash
+doubleagent start github
+doubleagent snapshot pull github --profile default
+doubleagent seed github --snapshot default
+```
+
+Snapshot pulls are gated by `connector.required_env` in the service definition and run with
+redaction by default.
 
 ## Project Configuration
 
@@ -135,10 +160,11 @@ doubleagent start github slack
 | GitHub | ✅ Available | PyGithub, octokit |
 | Slack | ✅ Available | slack_sdk |
 | Descope | ✅ Available | descope |
-| Jira | 🚧 Coming soon | atlassian-python-api |
-| Okta | 🚧 Coming soon | okta |
 | Auth0 | ✅ Available | auth0-python |
 | Stripe | ✅ Available | stripe |
+| Jira | ✅ Available (snapshot) | atlassian-python-api |
+| Salesforce | ✅ Available (snapshot) | simple-salesforce |
+| Okta | 🚧 Coming soon | okta |
 
 ## Contributing
 
