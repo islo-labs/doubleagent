@@ -1,4 +1,5 @@
 use super::RunArgs;
+use crate::request_id;
 use colored::Colorize;
 use doubleagent_core::{Config, ProcessManager, ServiceRegistry};
 use std::collections::HashMap;
@@ -17,6 +18,7 @@ pub async fn run(args: RunArgs) -> anyhow::Result<()> {
 
     let base_port = args.port.unwrap_or(8080);
     let mut started_services: Vec<StartedService> = Vec::new();
+    let request_id = request_id::resolve_request_id("run", args.request_id.as_deref());
 
     // Start all requested services
     println!("{} Starting services...", "▶".blue());
@@ -71,7 +73,7 @@ pub async fn run(args: RunArgs) -> anyhow::Result<()> {
     manager.save(&config.state_file)?;
 
     // Build environment variables map
-    let env_vars: HashMap<String, String> = started_services
+    let mut env_vars: HashMap<String, String> = started_services
         .iter()
         .map(|s| {
             let env_name = format!(
@@ -81,6 +83,8 @@ pub async fn run(args: RunArgs) -> anyhow::Result<()> {
             (env_name, s.url.clone())
         })
         .collect();
+    env_vars.insert("DOUBLEAGENT_REQUEST_ID".to_string(), request_id.clone());
+    env_vars.insert("REQUEST_ID".to_string(), request_id.clone());
 
     // Print environment info
     println!();
