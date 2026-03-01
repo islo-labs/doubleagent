@@ -1,0 +1,458 @@
+{
+  "domain": "resend",
+  "working_path": "/Users/rotem.tamir/dev/double-agent/services/resend",
+  "created_at": "2026-03-01T10:08:25.208863+00:00",
+  "research_complete": true,
+  "architect_complete": true,
+  "scenarios": [
+    {
+      "id": "email-sending-lifecycle",
+      "title": "Email Sending Lifecycle",
+      "status": "complete",
+      "test_file": "test_email_sending_lifecycle.py",
+      "grounding_result": {
+        "passed": 6,
+        "failed": 0,
+        "skipped": 5,
+        "errors": []
+      },
+      "fake_result": {
+        "passed": 11,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "qa_attempts": 0
+    },
+    {
+      "id": "scheduled-email-management",
+      "title": "Scheduled Email Management",
+      "status": "complete",
+      "test_file": "test_scheduled_email_management.py",
+      "grounding_result": {
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "fake_result": {
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "qa_attempts": 0
+    },
+    {
+      "id": "batch-email-sending",
+      "title": "Batch Email Sending",
+      "status": "complete",
+      "test_file": "test_batch_email_sending.py",
+      "grounding_result": {
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "fake_result": {
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "qa_attempts": 0
+    },
+    {
+      "id": "domain-management",
+      "title": "Domain Management",
+      "status": "complete",
+      "test_file": "test_domain_management.py",
+      "grounding_result": {
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "fake_result": {
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "qa_attempts": 0
+    },
+    {
+      "id": "contact-management",
+      "title": "Contact Management",
+      "status": "complete",
+      "test_file": "test_contact_management.py",
+      "grounding_result": {
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "fake_result": {
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "qa_attempts": 0
+    },
+    {
+      "id": "template-lifecycle",
+      "title": "Template Lifecycle",
+      "status": "complete",
+      "test_file": "test_template_lifecycle.py",
+      "grounding_result": {
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "fake_result": {
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "qa_attempts": 0
+    },
+    {
+      "id": "api-key-management",
+      "title": "API Key Management",
+      "status": "complete",
+      "test_file": "test_api_key_management.py",
+      "grounding_result": {
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "fake_result": {
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "qa_attempts": 0
+    },
+    {
+      "id": "webhook-configuration",
+      "title": "Webhook Configuration",
+      "status": "complete",
+      "test_file": "test_webhook_configuration.py",
+      "grounding_result": {
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "fake_result": {
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "qa_attempts": 0
+    },
+    {
+      "id": "error-handling",
+      "title": "Error Handling and Edge Cases",
+      "status": "complete",
+      "test_file": "test_error_handling.py",
+      "grounding_result": {
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "fake_result": {
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "qa_attempts": 0
+    },
+    {
+      "id": "template-email-integration",
+      "title": "Template and Email Integration",
+      "status": "complete",
+      "test_file": "test_template_email_integration.py",
+      "grounding_result": {
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "fake_result": {
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "errors": []
+      },
+      "qa_attempts": 0
+    }
+  ],
+  "costs": [
+    {
+      "phase": "research",
+      "scenario_id": null,
+      "sub_phase": null,
+      "cost_usd": 0.7290759999999998,
+      "duration_ms": 230111,
+      "num_turns": 28
+    },
+    {
+      "phase": "architect",
+      "scenario_id": null,
+      "sub_phase": null,
+      "cost_usd": 3.98895825,
+      "duration_ms": 842530,
+      "num_turns": 65
+    },
+    {
+      "phase": "implement",
+      "scenario_id": null,
+      "sub_phase": "scaffold",
+      "cost_usd": 0.4963537499999999,
+      "duration_ms": 89639,
+      "num_turns": 21
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "email-sending-lifecycle",
+      "sub_phase": "test",
+      "cost_usd": 0.7100564999999999,
+      "duration_ms": 138166,
+      "num_turns": 16
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "email-sending-lifecycle",
+      "sub_phase": "test",
+      "cost_usd": 1.250515,
+      "duration_ms": 205538,
+      "num_turns": 25
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "email-sending-lifecycle",
+      "sub_phase": "fake",
+      "cost_usd": 0.90740125,
+      "duration_ms": 3743,
+      "num_turns": 1
+    },
+    {
+      "phase": "implement",
+      "scenario_id": null,
+      "sub_phase": "scaffold",
+      "cost_usd": 0.51501215,
+      "duration_ms": 115260,
+      "num_turns": 17
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "email-sending-lifecycle",
+      "sub_phase": "test",
+      "cost_usd": 1.0776887499999999,
+      "duration_ms": 195865,
+      "num_turns": 20
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "email-sending-lifecycle",
+      "sub_phase": "fake",
+      "cost_usd": 1.2208113,
+      "duration_ms": 141432,
+      "num_turns": 29
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "scheduled-email-management",
+      "sub_phase": "test",
+      "cost_usd": 0.66598585,
+      "duration_ms": 91810,
+      "num_turns": 16
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "scheduled-email-management",
+      "sub_phase": "fake",
+      "cost_usd": 0.75084805,
+      "duration_ms": 98713,
+      "num_turns": 20
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "batch-email-sending",
+      "sub_phase": "test",
+      "cost_usd": 0.8199037000000002,
+      "duration_ms": 124620,
+      "num_turns": 20
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "batch-email-sending",
+      "sub_phase": "fake",
+      "cost_usd": 1.1437567499999997,
+      "duration_ms": 2972,
+      "num_turns": 1
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "domain-management",
+      "sub_phase": "test",
+      "cost_usd": 0.9982703500000001,
+      "duration_ms": 251636,
+      "num_turns": 19
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "domain-management",
+      "sub_phase": "test",
+      "cost_usd": 1.4845257499999998,
+      "duration_ms": 279939,
+      "num_turns": 33
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "domain-management",
+      "sub_phase": "fake",
+      "cost_usd": 0.8316439999999999,
+      "duration_ms": 102576,
+      "num_turns": 22
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "contact-management",
+      "sub_phase": "test",
+      "cost_usd": 1.0863454999999997,
+      "duration_ms": 125017,
+      "num_turns": 32
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "contact-management",
+      "sub_phase": "test",
+      "cost_usd": 1.1208124999999998,
+      "duration_ms": 216463,
+      "num_turns": 16
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "contact-management",
+      "sub_phase": "fake",
+      "cost_usd": 0.89278225,
+      "duration_ms": 153390,
+      "num_turns": 20
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "template-lifecycle",
+      "sub_phase": "test",
+      "cost_usd": 0.9620750000000001,
+      "duration_ms": 139400,
+      "num_turns": 21
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "template-lifecycle",
+      "sub_phase": "test",
+      "cost_usd": 0.96609525,
+      "duration_ms": 154185,
+      "num_turns": 22
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "template-lifecycle",
+      "sub_phase": "fake",
+      "cost_usd": 0.7960147499999999,
+      "duration_ms": 100582,
+      "num_turns": 21
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "api-key-management",
+      "sub_phase": "test",
+      "cost_usd": 0.99365855,
+      "duration_ms": 209006,
+      "num_turns": 26
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "api-key-management",
+      "sub_phase": "fake",
+      "cost_usd": 1.1998053999999996,
+      "duration_ms": 3941,
+      "num_turns": 1
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "webhook-configuration",
+      "sub_phase": "test",
+      "cost_usd": 0.7793174999999998,
+      "duration_ms": 110712,
+      "num_turns": 19
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "webhook-configuration",
+      "sub_phase": "test",
+      "cost_usd": 0.70271955,
+      "duration_ms": 132944,
+      "num_turns": 14
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "webhook-configuration",
+      "sub_phase": "fake",
+      "cost_usd": 1.02783125,
+      "duration_ms": 105587,
+      "num_turns": 25
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "error-handling",
+      "sub_phase": "test",
+      "cost_usd": 1.5718672999999999,
+      "duration_ms": 227062,
+      "num_turns": 37
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "error-handling",
+      "sub_phase": "test",
+      "cost_usd": 0.854316,
+      "duration_ms": 146291,
+      "num_turns": 15
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "error-handling",
+      "sub_phase": "fake",
+      "cost_usd": 1.7067983500000001,
+      "duration_ms": 291457,
+      "num_turns": 35
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "template-email-integration",
+      "sub_phase": "test",
+      "cost_usd": 1.10069825,
+      "duration_ms": 164342,
+      "num_turns": 26
+    },
+    {
+      "phase": "implement",
+      "scenario_id": "template-email-integration",
+      "sub_phase": "fake",
+      "cost_usd": 1.3493537500000001,
+      "duration_ms": 2946,
+      "num_turns": 1
+    }
+  ],
+  "total_cost_usd": 34.70129855
+}

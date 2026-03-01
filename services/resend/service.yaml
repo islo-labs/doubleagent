@@ -1,0 +1,46 @@
+name: resend
+version: '1.0'
+description: Email sending and management API for developers, supporting transactional
+  emails, batch sending, domain management, contacts, templates, and webhooks.
+docs: https://resend.com/docs/api-reference/introduction
+brief: 'Resend is a developer-focused email API service that enables applications
+  to send transactional and marketing emails via a REST API. It provides a clean,
+  modern alternative to legacy email providers like SendGrid and Mailgun, with first-class
+  support for React Email components. The API is organized around core resources:
+  Emails (send, batch send, schedule, cancel, retrieve), Domains (register, verify
+  via DNS, configure tracking), Contacts (manage subscriber lists with properties
+  and segments), Templates (create, publish, and send with variable substitution),
+  API Keys (manage access with granular permissions), Broadcasts (bulk marketing emails
+  to audiences), and Webhooks (subscribe to delivery events like sent, delivered,
+  bounced, opened, clicked).
+
+
+  This fake covers the primary API surface that AI agents would use: sending individual
+  and batch emails, managing email lifecycle (scheduling, canceling, retrieving status),
+  domain registration and verification, contact CRUD with subscription management,
+  template creation and publishing, API key management, and webhook configuration.
+  The API uses Bearer token authentication, enforces HTTPS, has a 2 req/sec rate limit
+  per team, and supports cursor-based pagination on list endpoints. All responses
+  follow a consistent pattern with an ''object'' field indicating the resource type.'
+supported_flows:
+- Email Sending Lifecycle
+- Scheduled Email Management
+- Batch Email Sending
+- Domain Management
+- Contact Management
+- Template Lifecycle
+- API Key Management
+- Webhook Configuration
+- Error Handling and Edge Cases
+- Template and Email Integration
+
+server:
+  command: ["uv", "run", "python", "main.py"]
+
+contracts:
+  command: ["uv", "run", "pytest", "-v", "--tb=short"]
+
+# Environment variables set by the CLI when running contract tests:
+#   DOUBLEAGENT_RESEND_URL - URL of the running fake service (set automatically)
+#   RESEND_GROUNDING_TOKEN - API token for grounding mode against the real Resend API
+#   PORT - Port the service listens on (set automatically)
