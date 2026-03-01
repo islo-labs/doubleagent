@@ -1,0 +1,33 @@
+name: DevOps Hygiene
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate env file conventions
+        run: |
+          set -euo pipefail
+          tracked_env="$(git ls-files | awk '($0==".env" || $0 ~ /\/\.env$/){print}')"
+          legacy_example="$(git ls-files | awk '($0==".example.env" || $0 ~ /\/\.example\.env$/){print}')"
+
+          if [[ -n "$tracked_env" ]]; then
+            echo "Tracked .env files are not allowed:"
+            echo "$tracked_env"
+            exit 1
+          fi
+
+          if [[ -n "$legacy_example" ]]; then
+            echo "Legacy .example.env file names found. Use .env.example instead:"
+            echo "$legacy_example"
+            exit 1
+          fi
