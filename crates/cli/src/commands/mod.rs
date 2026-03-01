@@ -114,6 +114,10 @@ pub struct SeedArgs {
 pub struct ContractArgs {
     /// Service to test
     pub service: String,
+
+    /// Request ID for trace/correlation in contract runs
+    #[arg(long)]
+    pub request_id: Option<String>,
 }
 
 #[derive(Parser)]
@@ -129,6 +133,10 @@ pub struct RunArgs {
     /// Keep services running after command exits
     #[arg(short, long)]
     pub keep: bool,
+
+    /// Request ID for trace/correlation in run sessions
+    #[arg(long)]
+    pub request_id: Option<String>,
 
     /// Command to run (everything after --)
     #[arg(last = true, required = true)]

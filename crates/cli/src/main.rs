@@ -1,5 +1,6 @@
 mod commands;
 mod project_config;
+mod request_id;
 
 use anyhow::Context;
 use clap::Parser;

@@ -47,6 +47,8 @@ doubleagent status                    # Show running services
 doubleagent stop                      # Stop all
 doubleagent reset github              # Clear state
 doubleagent seed github ./data.yaml   # Load fixtures
+doubleagent run -s github --request-id req-123 -- python script.py
+doubleagent contract github --request-id req-123
 ```
 
 When a service starts, the CLI prints the environment variable to use:
@@ -56,6 +58,13 @@ $ doubleagent start github
 ✓ github running on http://localhost:8080 (PID: 12345)
   Export: DOUBLEAGENT_GITHUB_URL=http://localhost:8080
 ```
+
+For command correlation, `doubleagent run` and `doubleagent contract` export:
+
+- `DOUBLEAGENT_REQUEST_ID`
+- `REQUEST_ID`
+
+Pass `--request-id <value>` to control the ID, or omit it to auto-generate one.
 
 ### Using with Official SDKs
 

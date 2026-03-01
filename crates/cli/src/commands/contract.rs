@@ -1,4 +1,5 @@
 use super::ContractArgs;
+use crate::request_id;
 use anyhow::Context;
 use colored::Colorize;
 use doubleagent_core::{mise, Config, ProcessManager, ServiceRegistry};
@@ -70,6 +71,10 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
 
     let env_var_name = format!("DOUBLEAGENT_{}_URL", args.service.to_uppercase());
     let service_url = format!("http://localhost:{}", port);
+    let request_id = request_id::resolve_request_id(
+        &format!("contract-{}", args.service),
+        args.request_id.as_deref(),
+    );
     println!(
         "{} {} running on {} (PID: {})",
         "✓".green(),
@@ -77,6 +82,7 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
         service_url.cyan(),
         pid
     );
+    println!("{} Request ID: {}", "ℹ".blue(), request_id.bold());
     println!();
 
     // Build command, wrapping with mise if .mise.toml exists
@@ -85,6 +91,9 @@ pub async fn run(args: ContractArgs) -> anyhow::Result<()> {
 
     // Pass service URL as environment variable
     cmd.env(&env_var_name, &service_url);
+    // Propagate request-id style correlation variables to contract tests.
+    cmd.env("DOUBLEAGENT_REQUEST_ID", &request_id);
+    cmd.env("REQUEST_ID", &request_id);
 
     let command_str = contracts_config.command.join(" ");
     tracing::debug!(
