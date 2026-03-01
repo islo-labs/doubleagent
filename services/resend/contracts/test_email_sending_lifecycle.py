@@ -130,8 +130,9 @@ class TestEmailSendingLifecycle:
         # `to` is always an array
         assert recipient in fetched["to"]
 
-        # `from` should match what we sent
-        assert sender == fetched["from"] or "resend.dev" in fetched["from"] or "example.com" in fetched["from"]
+        # `from` should contain the sender address we used
+        sender_email = sender.split("<")[-1].rstrip(">") if "<" in sender else sender
+        assert sender_email in fetched["from"]
 
         # created_at is a valid ISO 8601 timestamp
         assert ISO8601_RE.match(fetched["created_at"]), (
