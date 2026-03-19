@@ -1,0 +1,1002 @@
+[
+  {
+    "id": "email-sending-lifecycle",
+    "title": "Email Sending Lifecycle",
+    "description": "Covers sending individual emails, retrieving their status, and verifying delivery tracking fields.",
+    "test_cases": [
+      {
+        "id": "send-simple-email",
+        "title": "Send a simple email with subject and HTML body",
+        "given": "An authenticated API client with a verified sending domain",
+        "steps": [
+          {
+            "action": "Send an email from 'Test <test@example.com>' to 'recipient@example.com' with subject 'Hello World' and HTML body '<p>Hi there</p>'",
+            "expected": "Returns a response with a non-null id (UUID format)"
+          },
+          {
+            "action": "Retrieve the email by the returned id",
+            "expected": "Returns an email object with object='email', matching id, from='Test <test@example.com>', to=['recipient@example.com'], subject='Hello World', html='<p>Hi there</p>', created_at as a valid ISO 8601 timestamp, bcc=null or empty, cc=null or empty, reply_to=null or empty"
+          }
+        ],
+        "api_operations": [
+          "POST /emails",
+          "GET /emails/{id}"
+        ]
+      },
+      {
+        "id": "send-email-with-all-options",
+        "title": "Send an email with cc, bcc, reply_to, and tags",
+        "given": "An authenticated API client with a verified sending domain",
+        "steps": [
+          {
+            "action": "Send an email from 'sender@example.com' to 'main@example.com' with cc 'cc@example.com', bcc 'bcc@example.com', reply_to 'reply@example.com', subject 'Full Options', HTML body '<p>Test</p>', and tags [{name: 'category', value: 'test'}, {name: 'environment', value: 'staging'}]",
+            "expected": "Returns a response with a non-null id"
+          },
+          {
+            "action": "Retrieve the email by the returned id",
+            "expected": "Returns email with from='sender@example.com', to=['main@example.com'], cc=['cc@example.com'], bcc=['bcc@example.com'], reply_to=['reply@example.com'], subject='Full Options', tags containing {name: 'category', value: 'test'} and {name: 'environment', value: 'staging'}"
+          }
+        ],
+        "api_operations": [
+          "POST /emails",
+          "GET /emails/{id}"
+        ]
+      },
+      {
+        "id": "send-email-with-plain-text",
+        "title": "Send an email with plain text body instead of HTML",
+        "given": "An authenticated API client with a verified sending domain",
+        "steps": [
+          {
+            "action": "Send an email from 'sender@example.com' to 'recipient@example.com' with subject 'Plain Text Email' and text body 'This is plain text content'",
+            "expected": "Returns a response with a non-null id"
+          },
+          {
+            "action": "Retrieve the email by the returned id",
+            "expected": "Returns email with text='This is plain text content', html=null, subject='Plain Text Email'"
+          }
+        ],
+        "api_operations": [
+          "POST /emails",
+          "GET /emails/{id}"
+        ]
+      },
+      {
+        "id": "send-email-multiple-recipients",
+        "title": "Send an email to multiple recipients (up to 50)",
+        "given": "An authenticated API client with a verified sending domain",
+        "steps": [
+          {
+            "action": "Send an email from 'sender@example.com' to ['user1@example.com', 'user2@example.com', 'user3@example.com'] with subject 'Multi-recipient' and HTML body '<p>Hello all</p>'",
+            "expected": "Returns a response with a non-null id"
+          },
+          {
+            "action": "Retrieve the email by the returned id",
+            "expected": "Returns email with to=['user1@example.com', 'user2@example.com', 'user3@example.com']"
+          }
+        ],
+        "api_operations": [
+          "POST /emails",
+          "GET /emails/{id}"
+        ]
+      },
+      {
+        "id": "send-email-idempotency",
+        "title": "Sending the same email twice with an idempotency key returns the same id",
+        "given": "An authenticated API client with a verified sending domain",
+        "steps": [
+          {
+            "action": "Send an email from 'sender@example.com' to 'recipient@example.com' with subject 'Idempotent Email' and HTML body '<p>Test</p>', including an Idempotency-Key header with value 'unique-key-12345'",
+            "expected": "Returns a response with a non-null id"
+          },
+          {
+            "action": "Send the same email again with the same Idempotency-Key 'unique-key-12345'",
+            "expected": "Returns the same id as the first request without sending a duplicate email"
+          }
+        ],
+        "api_operations": [
+          "POST /emails"
+        ]
+      },
+      {
+        "id": "list-sent-emails",
+        "title": "List sent emails with pagination",
+        "given": "An authenticated API client that has previously sent at least two emails",
+        "steps": [
+          {
+            "action": "Send an email from 'sender@example.com' to 'r1@example.com' with subject 'List Test 1' and HTML body '<p>1</p>'",
+            "expected": "Returns a response with a non-null id"
+          },
+          {
+            "action": "Send an email from 'sender@example.com' to 'r2@example.com' with subject 'List Test 2' and HTML body '<p>2</p>'",
+            "expected": "Returns a response with a non-null id"
+          },
+          {
+            "action": "List sent emails with limit 10",
+            "expected": "Returns object='list', data is an array containing the two sent emails (each with id, to, from, subject, created_at, last_event fields), has_more is a boolean"
+          }
+        ],
+        "api_operations": [
+          "POST /emails",
+          "GET /emails"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "scheduled-email-management",
+    "title": "Scheduled Email Management",
+    "description": "Covers scheduling emails for future delivery, updating the scheduled time, and canceling scheduled emails.",
+    "test_cases": [
+      {
+        "id": "schedule-email-for-future",
+        "title": "Schedule an email for future delivery",
+        "given": "An authenticated API client with a verified sending domain",
+        "steps": [
+          {
+            "action": "Send an email from 'sender@example.com' to 'recipient@example.com' with subject 'Scheduled Email' and HTML body '<p>Future delivery</p>', with scheduled_at set to an ISO 8601 timestamp 24 hours from now",
+            "expected": "Returns a response with a non-null id"
+          },
+          {
+            "action": "Retrieve the email by the returned id",
+            "expected": "Returns email with subject='Scheduled Email', scheduled_at matching the provided future timestamp, last_event='scheduled'"
+          }
+        ],
+        "api_operations": [
+          "POST /emails",
+          "GET /emails/{id}"
+        ]
+      },
+      {
+        "id": "update-scheduled-email-time",
+        "title": "Update the scheduled time of a pending email",
+        "given": "An authenticated API client and a previously scheduled email that has not yet been sent",
+        "steps": [
+          {
+            "action": "Send an email from 'sender@example.com' to 'recipient@example.com' with subject 'Reschedule Test' and HTML body '<p>Test</p>', with scheduled_at set to 48 hours from now",
+            "expected": "Returns a response with a non-null id"
+          },
+          {
+            "action": "Update the email's scheduled_at to 72 hours from now using the returned id",
+            "expected": "Returns object='email' with the same id"
+          },
+          {
+            "action": "Retrieve the email by the id",
+            "expected": "Returns email with scheduled_at matching the updated timestamp (72 hours from now)"
+          }
+        ],
+        "api_operations": [
+          "POST /emails",
+          "PATCH /emails/{id}",
+          "GET /emails/{id}"
+        ]
+      },
+      {
+        "id": "cancel-scheduled-email",
+        "title": "Cancel a scheduled email before it is sent",
+        "given": "An authenticated API client and a previously scheduled email that has not yet been sent",
+        "steps": [
+          {
+            "action": "Send an email from 'sender@example.com' to 'recipient@example.com' with subject 'Cancel Me' and HTML body '<p>This will be canceled</p>', with scheduled_at set to 48 hours from now",
+            "expected": "Returns a response with a non-null id"
+          },
+          {
+            "action": "Cancel the scheduled email using the returned id",
+            "expected": "Returns object='email' with the same id"
+          },
+          {
+            "action": "Retrieve the email by the id",
+            "expected": "Returns email with last_event='canceled' or indicates the email has been canceled"
+          }
+        ],
+        "api_operations": [
+          "POST /emails",
+          "POST /emails/{id}/cancel",
+          "GET /emails/{id}"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "batch-email-sending",
+    "title": "Batch Email Sending",
+    "description": "Covers sending multiple emails in a single API call, verifying individual email tracking, and testing batch limits.",
+    "test_cases": [
+      {
+        "id": "send-batch-emails",
+        "title": "Send a batch of multiple emails in one request",
+        "given": "An authenticated API client with a verified sending domain",
+        "steps": [
+          {
+            "action": "Send a batch of 3 emails: (1) from 'sender@example.com' to 'user1@example.com' with subject 'Batch 1', (2) from 'sender@example.com' to 'user2@example.com' with subject 'Batch 2', (3) from 'sender@example.com' to 'user3@example.com' with subject 'Batch 3', all with HTML body '<p>Batch test</p>'",
+            "expected": "Returns a response with a data array containing 3 objects, each with a unique non-null id"
+          },
+          {
+            "action": "Retrieve the first email by its id from the batch response",
+            "expected": "Returns email with subject='Batch 1', to=['user1@example.com'], from='sender@example.com'"
+          },
+          {
+            "action": "Retrieve the third email by its id from the batch response",
+            "expected": "Returns email with subject='Batch 3', to=['user3@example.com'], from='sender@example.com'"
+          }
+        ],
+        "api_operations": [
+          "POST /emails/batch",
+          "GET /emails/{id}"
+        ]
+      },
+      {
+        "id": "batch-emails-individual-options",
+        "title": "Each email in a batch can have different recipients and options",
+        "given": "An authenticated API client with a verified sending domain",
+        "steps": [
+          {
+            "action": "Send a batch of 2 emails: (1) from 'sender@example.com' to 'alice@example.com' with subject 'For Alice' and tags [{name: 'type', value: 'greeting'}], (2) from 'sender@example.com' to 'bob@example.com' with subject 'For Bob' and reply_to 'support@example.com'",
+            "expected": "Returns a response with a data array containing 2 objects, each with a unique non-null id"
+          },
+          {
+            "action": "Retrieve the first email by its id",
+            "expected": "Returns email with subject='For Alice', to=['alice@example.com'], tags containing {name: 'type', value: 'greeting'}"
+          },
+          {
+            "action": "Retrieve the second email by its id",
+            "expected": "Returns email with subject='For Bob', to=['bob@example.com'], reply_to=['support@example.com']"
+          }
+        ],
+        "api_operations": [
+          "POST /emails/batch",
+          "GET /emails/{id}"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "domain-management",
+    "title": "Domain Management",
+    "description": "Covers the full lifecycle of domain registration, configuration, verification, listing, updating, and deletion.",
+    "test_cases": [
+      {
+        "id": "create-and-retrieve-domain",
+        "title": "Create a domain and retrieve its details with DNS records",
+        "given": "An authenticated API client with no pre-existing test domains",
+        "steps": [
+          {
+            "action": "Create a domain with name 'test.example.com'",
+            "expected": "Returns a domain object with non-null id, name='test.example.com', status (e.g., 'not_started' or 'pending'), region='us-east-1' (default), created_at as valid ISO 8601 timestamp, and records array containing DNS records (SPF, DKIM) each with record, name, value, type, ttl, and status fields"
+          },
+          {
+            "action": "Retrieve the domain by its id",
+            "expected": "Returns domain with id matching, name='test.example.com', status, region, created_at, and records array"
+          }
+        ],
+        "api_operations": [
+          "POST /domains",
+          "GET /domains/{id}"
+        ]
+      },
+      {
+        "id": "create-domain-with-options",
+        "title": "Create a domain with custom region and tracking options",
+        "given": "An authenticated API client",
+        "steps": [
+          {
+            "action": "Create a domain with name 'eu.example.com', region 'eu-west-1', open_tracking true, click_tracking true, tls 'enforced'",
+            "expected": "Returns a domain object with non-null id, name='eu.example.com', region='eu-west-1', and records array"
+          },
+          {
+            "action": "Retrieve the domain by its id",
+            "expected": "Returns domain with name='eu.example.com', region='eu-west-1'"
+          }
+        ],
+        "api_operations": [
+          "POST /domains",
+          "GET /domains/{id}"
+        ]
+      },
+      {
+        "id": "list-domains",
+        "title": "List all domains and verify pagination",
+        "given": "An authenticated API client with at least one domain created",
+        "steps": [
+          {
+            "action": "Create a domain with name 'list-test.example.com'",
+            "expected": "Returns a domain object with non-null id"
+          },
+          {
+            "action": "List all domains",
+            "expected": "Returns object='list', data array containing the created domain (with id, name, status, created_at, region, capabilities fields), has_more is a boolean"
+          }
+        ],
+        "api_operations": [
+          "POST /domains",
+          "GET /domains"
+        ]
+      },
+      {
+        "id": "update-domain-tracking",
+        "title": "Update domain tracking and TLS settings",
+        "given": "An authenticated API client with an existing domain",
+        "steps": [
+          {
+            "action": "Create a domain with name 'update-test.example.com'",
+            "expected": "Returns a domain object with non-null id"
+          },
+          {
+            "action": "Update the domain to enable open_tracking=true, click_tracking=true, and tls='enforced'",
+            "expected": "Returns object='domain' with the same id"
+          }
+        ],
+        "api_operations": [
+          "POST /domains",
+          "PATCH /domains/{id}"
+        ]
+      },
+      {
+        "id": "verify-domain",
+        "title": "Trigger domain verification",
+        "given": "An authenticated API client with an existing unverified domain",
+        "steps": [
+          {
+            "action": "Create a domain with name 'verify-test.example.com'",
+            "expected": "Returns a domain object with non-null id"
+          },
+          {
+            "action": "Trigger verification for the domain by its id",
+            "expected": "Returns object='domain' with the same id"
+          }
+        ],
+        "api_operations": [
+          "POST /domains",
+          "POST /domains/{id}/verify"
+        ]
+      },
+      {
+        "id": "delete-domain",
+        "title": "Delete a domain and verify it is removed",
+        "given": "An authenticated API client with an existing domain",
+        "steps": [
+          {
+            "action": "Create a domain with name 'delete-test.example.com'",
+            "expected": "Returns a domain object with non-null id"
+          },
+          {
+            "action": "Delete the domain by its id",
+            "expected": "Returns a successful deletion response"
+          },
+          {
+            "action": "Attempt to retrieve the deleted domain by its id",
+            "expected": "Returns a 404 not found error"
+          }
+        ],
+        "api_operations": [
+          "POST /domains",
+          "DELETE /domains/{id}",
+          "GET /domains/{id}"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "contact-management",
+    "title": "Contact Management",
+    "description": "Covers creating, retrieving, updating, listing, and deleting contacts including subscription management and lookup by email.",
+    "test_cases": [
+      {
+        "id": "create-and-retrieve-contact",
+        "title": "Create a contact and retrieve it by id",
+        "given": "An authenticated API client",
+        "steps": [
+          {
+            "action": "Create a contact with email 'john@example.com', first_name 'John', last_name 'Doe'",
+            "expected": "Returns object='contact' with a non-null id"
+          },
+          {
+            "action": "Retrieve the contact by its id",
+            "expected": "Returns contact with object='contact', matching id, email='john@example.com', first_name='John', last_name='Doe', unsubscribed=false, created_at as valid ISO 8601 timestamp"
+          }
+        ],
+        "api_operations": [
+          "POST /contacts",
+          "GET /contacts/{id}"
+        ]
+      },
+      {
+        "id": "retrieve-contact-by-email",
+        "title": "Retrieve a contact using email address instead of id",
+        "given": "An authenticated API client with an existing contact",
+        "steps": [
+          {
+            "action": "Create a contact with email 'lookup@example.com', first_name 'Lookup', last_name 'User'",
+            "expected": "Returns object='contact' with a non-null id"
+          },
+          {
+            "action": "Retrieve the contact by email 'lookup@example.com'",
+            "expected": "Returns contact with email='lookup@example.com', first_name='Lookup', last_name='User', matching the same id as the created contact"
+          }
+        ],
+        "api_operations": [
+          "POST /contacts",
+          "GET /contacts/{email}"
+        ]
+      },
+      {
+        "id": "update-contact-fields",
+        "title": "Update a contact's name and subscription status",
+        "given": "An authenticated API client with an existing contact",
+        "steps": [
+          {
+            "action": "Create a contact with email 'update-me@example.com', first_name 'Original', last_name 'Name'",
+            "expected": "Returns object='contact' with a non-null id"
+          },
+          {
+            "action": "Update the contact's first_name to 'Updated', last_name to 'Person', and unsubscribed to true",
+            "expected": "Returns object='contact' with the same id"
+          },
+          {
+            "action": "Retrieve the contact by its id",
+            "expected": "Returns contact with first_name='Updated', last_name='Person', unsubscribed=true"
+          }
+        ],
+        "api_operations": [
+          "POST /contacts",
+          "PATCH /contacts/{id}",
+          "GET /contacts/{id}"
+        ]
+      },
+      {
+        "id": "list-contacts-with-pagination",
+        "title": "List contacts with limit and cursor-based pagination",
+        "given": "An authenticated API client with multiple contacts",
+        "steps": [
+          {
+            "action": "Create three contacts with emails 'page1@example.com', 'page2@example.com', 'page3@example.com'",
+            "expected": "Each returns object='contact' with a non-null id"
+          },
+          {
+            "action": "List contacts with limit 2",
+            "expected": "Returns object='list', data array with 2 contacts (each having id, email, first_name, last_name, created_at, unsubscribed), has_more=true"
+          },
+          {
+            "action": "List contacts with limit 2 and 'after' cursor set to the last id from the previous page",
+            "expected": "Returns object='list', data array containing the remaining contact(s), has_more=false"
+          }
+        ],
+        "api_operations": [
+          "POST /contacts",
+          "GET /contacts"
+        ]
+      },
+      {
+        "id": "delete-contact-by-id",
+        "title": "Delete a contact by id and verify removal",
+        "given": "An authenticated API client with an existing contact",
+        "steps": [
+          {
+            "action": "Create a contact with email 'delete-me@example.com'",
+            "expected": "Returns object='contact' with a non-null id"
+          },
+          {
+            "action": "Delete the contact by its id",
+            "expected": "Returns object='contact' with the contact id and deleted=true"
+          },
+          {
+            "action": "Attempt to retrieve the deleted contact by its id",
+            "expected": "Returns a 404 not found error"
+          }
+        ],
+        "api_operations": [
+          "POST /contacts",
+          "DELETE /contacts/{id}",
+          "GET /contacts/{id}"
+        ]
+      },
+      {
+        "id": "delete-contact-by-email",
+        "title": "Delete a contact using email address",
+        "given": "An authenticated API client with an existing contact",
+        "steps": [
+          {
+            "action": "Create a contact with email 'delete-by-email@example.com'",
+            "expected": "Returns object='contact' with a non-null id"
+          },
+          {
+            "action": "Delete the contact by email 'delete-by-email@example.com'",
+            "expected": "Returns object='contact' with deleted=true"
+          },
+          {
+            "action": "Attempt to retrieve the contact by email 'delete-by-email@example.com'",
+            "expected": "Returns a 404 not found error"
+          }
+        ],
+        "api_operations": [
+          "POST /contacts",
+          "DELETE /contacts/{email}",
+          "GET /contacts/{email}"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "template-lifecycle",
+    "title": "Template Lifecycle",
+    "description": "Covers creating, retrieving, listing, publishing, duplicating, updating, and deleting email templates, plus sending emails using templates.",
+    "test_cases": [
+      {
+        "id": "create-and-retrieve-template",
+        "title": "Create a template and retrieve its full details",
+        "given": "An authenticated API client with no pre-existing test templates",
+        "steps": [
+          {
+            "action": "Create a template with name 'Welcome Email', subject 'Welcome {{firstName}}!', from 'noreply@example.com', html '<h1>Hello {{firstName}}</h1><p>Welcome to our service.</p>', and variables [{key: 'firstName', type: 'string', fallback_value: 'there'}]",
+            "expected": "Returns object='template' with a non-null id"
+          },
+          {
+            "action": "Retrieve the template by its id",
+            "expected": "Returns template with object='template', matching id, name='Welcome Email', subject='Welcome {{firstName}}!', from='noreply@example.com', html containing 'Hello {{firstName}}', status='draft', created_at and updated_at as valid ISO 8601 timestamps, variables array containing an object with key='firstName'"
+          }
+        ],
+        "api_operations": [
+          "POST /templates",
+          "GET /templates/{id}"
+        ]
+      },
+      {
+        "id": "publish-and-send-template",
+        "title": "Publish a template and send an email using it",
+        "given": "An authenticated API client with a draft template",
+        "steps": [
+          {
+            "action": "Create a template with name 'Order Confirmation', subject 'Order #{{orderNumber}} Confirmed', from 'orders@example.com', html '<p>Thank you for order #{{orderNumber}}!</p>', and variables [{key: 'orderNumber', type: 'string'}]",
+            "expected": "Returns object='template' with a non-null id"
+          },
+          {
+            "action": "Publish the template by its id",
+            "expected": "Returns a successful response indicating the template is now published"
+          },
+          {
+            "action": "Retrieve the template by its id",
+            "expected": "Returns template with status='published', published_at as a valid ISO 8601 timestamp"
+          },
+          {
+            "action": "Send an email to 'customer@example.com' using the template id with variables {orderNumber: '12345'}",
+            "expected": "Returns a response with a non-null email id"
+          }
+        ],
+        "api_operations": [
+          "POST /templates",
+          "POST /templates/{id}/publish",
+          "GET /templates/{id}",
+          "POST /emails"
+        ]
+      },
+      {
+        "id": "list-templates",
+        "title": "List templates and verify pagination",
+        "given": "An authenticated API client with at least one template",
+        "steps": [
+          {
+            "action": "Create a template with name 'List Test Template', html '<p>Test</p>'",
+            "expected": "Returns object='template' with a non-null id"
+          },
+          {
+            "action": "List templates with limit 10",
+            "expected": "Returns object='list', data array containing templates (each with id, name, status, created_at, updated_at, alias fields), has_more as a boolean. The created template appears in the list."
+          }
+        ],
+        "api_operations": [
+          "POST /templates",
+          "GET /templates"
+        ]
+      },
+      {
+        "id": "duplicate-template",
+        "title": "Duplicate an existing template",
+        "given": "An authenticated API client with an existing template",
+        "steps": [
+          {
+            "action": "Create a template with name 'Original Template', html '<p>Original content</p>', subject 'Original Subject'",
+            "expected": "Returns object='template' with a non-null id"
+          },
+          {
+            "action": "Duplicate the template by its id",
+            "expected": "Returns a new template object with a different id from the original"
+          },
+          {
+            "action": "Retrieve the duplicated template by its new id",
+            "expected": "Returns template with html containing 'Original content', a different id from the original"
+          }
+        ],
+        "api_operations": [
+          "POST /templates",
+          "POST /templates/{id}/duplicate",
+          "GET /templates/{id}"
+        ]
+      },
+      {
+        "id": "update-and-delete-template",
+        "title": "Update a template's content then delete it",
+        "given": "An authenticated API client with an existing template",
+        "steps": [
+          {
+            "action": "Create a template with name 'Mutable Template', html '<p>Version 1</p>'",
+            "expected": "Returns object='template' with a non-null id"
+          },
+          {
+            "action": "Update the template to change name to 'Updated Template' and html to '<p>Version 2</p>'",
+            "expected": "Returns a successful update response with the same id"
+          },
+          {
+            "action": "Retrieve the template by its id",
+            "expected": "Returns template with name='Updated Template', html containing 'Version 2'"
+          },
+          {
+            "action": "Delete the template by its id",
+            "expected": "Returns a successful deletion response"
+          },
+          {
+            "action": "Attempt to retrieve the deleted template by its id",
+            "expected": "Returns a 404 not found error"
+          }
+        ],
+        "api_operations": [
+          "POST /templates",
+          "PATCH /templates/{id}",
+          "GET /templates/{id}",
+          "DELETE /templates/{id}"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "api-key-management",
+    "title": "API Key Management",
+    "description": "Covers creating API keys with different permission levels, listing keys, and deleting keys.",
+    "test_cases": [
+      {
+        "id": "create-full-access-api-key",
+        "title": "Create an API key with full access permissions",
+        "given": "An authenticated API client",
+        "steps": [
+          {
+            "action": "Create an API key with name 'Production Key' and permission 'full_access'",
+            "expected": "Returns an object with non-null id (UUID format) and token starting with 're_'"
+          },
+          {
+            "action": "List all API keys",
+            "expected": "Returns object='list', data array containing the created key with id, name='Production Key', and created_at as valid ISO 8601 timestamp"
+          }
+        ],
+        "api_operations": [
+          "POST /api-keys",
+          "GET /api-keys"
+        ]
+      },
+      {
+        "id": "create-sending-access-api-key-with-domain",
+        "title": "Create an API key restricted to sending from a specific domain",
+        "given": "An authenticated API client with an existing domain",
+        "steps": [
+          {
+            "action": "Create a domain with name 'restricted.example.com'",
+            "expected": "Returns a domain with a non-null id"
+          },
+          {
+            "action": "Create an API key with name 'Restricted Sender', permission 'sending_access', and domain_id set to the created domain's id",
+            "expected": "Returns an object with non-null id and token starting with 're_'"
+          },
+          {
+            "action": "List all API keys",
+            "expected": "Returns data array containing the key with name='Restricted Sender'"
+          }
+        ],
+        "api_operations": [
+          "POST /domains",
+          "POST /api-keys",
+          "GET /api-keys"
+        ]
+      },
+      {
+        "id": "delete-api-key",
+        "title": "Delete an API key and verify it is removed from the list",
+        "given": "An authenticated API client with an existing API key",
+        "steps": [
+          {
+            "action": "Create an API key with name 'Temporary Key'",
+            "expected": "Returns an object with non-null id and token"
+          },
+          {
+            "action": "Delete the API key by its id",
+            "expected": "Returns a successful deletion response"
+          },
+          {
+            "action": "List all API keys",
+            "expected": "The deleted key with name 'Temporary Key' does not appear in the data array"
+          }
+        ],
+        "api_operations": [
+          "POST /api-keys",
+          "DELETE /api-keys/{id}",
+          "GET /api-keys"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webhook-configuration",
+    "title": "Webhook Configuration",
+    "description": "Covers creating webhooks with event subscriptions, listing, retrieving, updating, and deleting webhooks.",
+    "test_cases": [
+      {
+        "id": "create-and-retrieve-webhook",
+        "title": "Create a webhook and retrieve its configuration",
+        "given": "An authenticated API client",
+        "steps": [
+          {
+            "action": "Create a webhook with endpoint 'https://hooks.example.com/resend' and events ['email.sent', 'email.delivered', 'email.bounced']",
+            "expected": "Returns object='webhook' with a non-null id and a non-null signing_secret"
+          },
+          {
+            "action": "Retrieve the webhook by its id",
+            "expected": "Returns webhook with matching id, endpoint='https://hooks.example.com/resend', events containing 'email.sent', 'email.delivered', and 'email.bounced'"
+          }
+        ],
+        "api_operations": [
+          "POST /webhooks",
+          "GET /webhooks/{id}"
+        ]
+      },
+      {
+        "id": "list-webhooks",
+        "title": "List all configured webhooks",
+        "given": "An authenticated API client with at least one webhook",
+        "steps": [
+          {
+            "action": "Create a webhook with endpoint 'https://hooks.example.com/test' and events ['email.opened']",
+            "expected": "Returns object='webhook' with a non-null id"
+          },
+          {
+            "action": "List all webhooks",
+            "expected": "Returns a list containing the created webhook with its id and endpoint"
+          }
+        ],
+        "api_operations": [
+          "POST /webhooks",
+          "GET /webhooks"
+        ]
+      },
+      {
+        "id": "update-webhook-events",
+        "title": "Update a webhook's subscribed events",
+        "given": "An authenticated API client with an existing webhook",
+        "steps": [
+          {
+            "action": "Create a webhook with endpoint 'https://hooks.example.com/update-test' and events ['email.sent']",
+            "expected": "Returns object='webhook' with a non-null id"
+          },
+          {
+            "action": "Update the webhook to subscribe to events ['email.sent', 'email.delivered', 'email.opened', 'email.clicked']",
+            "expected": "Returns a successful update response with the same id"
+          },
+          {
+            "action": "Retrieve the webhook by its id",
+            "expected": "Returns webhook with events containing 'email.sent', 'email.delivered', 'email.opened', and 'email.clicked'"
+          }
+        ],
+        "api_operations": [
+          "POST /webhooks",
+          "PATCH /webhooks/{id}",
+          "GET /webhooks/{id}"
+        ]
+      },
+      {
+        "id": "delete-webhook",
+        "title": "Delete a webhook and verify removal",
+        "given": "An authenticated API client with an existing webhook",
+        "steps": [
+          {
+            "action": "Create a webhook with endpoint 'https://hooks.example.com/delete-test' and events ['email.bounced']",
+            "expected": "Returns object='webhook' with a non-null id"
+          },
+          {
+            "action": "Delete the webhook by its id",
+            "expected": "Returns a successful deletion response"
+          },
+          {
+            "action": "Attempt to retrieve the deleted webhook by its id",
+            "expected": "Returns a 404 not found error"
+          }
+        ],
+        "api_operations": [
+          "POST /webhooks",
+          "DELETE /webhooks/{id}",
+          "GET /webhooks/{id}"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "error-handling",
+    "title": "Error Handling and Edge Cases",
+    "description": "Covers authentication failures, validation errors, not-found errors, and other edge cases that AI agents must handle gracefully.",
+    "test_cases": [
+      {
+        "id": "missing-required-email-fields",
+        "title": "Sending an email without required fields returns validation error",
+        "given": "An authenticated API client",
+        "steps": [
+          {
+            "action": "Attempt to send an email with only the 'from' field set to 'sender@example.com', omitting 'to' and 'subject'",
+            "expected": "Returns a 400 error with a validation error message indicating missing required fields"
+          }
+        ],
+        "api_operations": [
+          "POST /emails"
+        ]
+      },
+      {
+        "id": "retrieve-nonexistent-email",
+        "title": "Retrieving a non-existent email returns 404",
+        "given": "An authenticated API client",
+        "steps": [
+          {
+            "action": "Attempt to retrieve an email with a random UUID that does not exist",
+            "expected": "Returns a 404 not found error"
+          }
+        ],
+        "api_operations": [
+          "GET /emails/{id}"
+        ]
+      },
+      {
+        "id": "invalid-api-key",
+        "title": "Using an invalid API key returns 403",
+        "given": "An API client configured with an invalid API key 're_invalid_key_12345'",
+        "steps": [
+          {
+            "action": "Attempt to list emails using the invalid API key",
+            "expected": "Returns a 403 error indicating the API key is invalid"
+          }
+        ],
+        "api_operations": [
+          "GET /emails"
+        ]
+      },
+      {
+        "id": "missing-api-key",
+        "title": "Omitting the Authorization header returns 401",
+        "given": "An API client with no Authorization header configured",
+        "steps": [
+          {
+            "action": "Attempt to send an email without any Authorization header",
+            "expected": "Returns a 401 error indicating a missing API key"
+          }
+        ],
+        "api_operations": [
+          "POST /emails"
+        ]
+      },
+      {
+        "id": "create-contact-with-special-characters",
+        "title": "Create a contact with special characters in name fields",
+        "given": "An authenticated API client",
+        "steps": [
+          {
+            "action": "Create a contact with email 'special@example.com', first_name 'Jos\u00e9 Mar\u00eda', last_name \"O'Connor-Smith\"",
+            "expected": "Returns object='contact' with a non-null id"
+          },
+          {
+            "action": "Retrieve the contact by its id",
+            "expected": "Returns contact with first_name='Jos\u00e9 Mar\u00eda', last_name=\"O'Connor-Smith\", preserving all special characters"
+          }
+        ],
+        "api_operations": [
+          "POST /contacts",
+          "GET /contacts/{id}"
+        ]
+      },
+      {
+        "id": "api-key-name-max-length",
+        "title": "Creating an API key with a name exceeding 50 characters",
+        "given": "An authenticated API client",
+        "steps": [
+          {
+            "action": "Attempt to create an API key with a name that is 51 characters long",
+            "expected": "Returns a 400 validation error indicating the name exceeds the maximum length of 50 characters"
+          }
+        ],
+        "api_operations": [
+          "POST /api-keys"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "template-email-integration",
+    "title": "Template and Email Integration",
+    "description": "Covers sending emails using templates with variable substitution, testing template alias lookups, and verifying template defaults are applied.",
+    "test_cases": [
+      {
+        "id": "send-email-with-template-variables",
+        "title": "Send an email using a published template with variable substitution",
+        "given": "An authenticated API client with a published template containing variables",
+        "steps": [
+          {
+            "action": "Create a template with name 'Invoice Template', subject 'Invoice #{{invoiceId}}', from 'billing@example.com', html '<p>Dear {{customerName}}, your invoice #{{invoiceId}} for ${{amount}} is attached.</p>', and variables [{key: 'invoiceId', type: 'string'}, {key: 'customerName', type: 'string', fallback_value: 'Customer'}, {key: 'amount', type: 'string'}]",
+            "expected": "Returns object='template' with a non-null id"
+          },
+          {
+            "action": "Publish the template by its id",
+            "expected": "Returns a successful response"
+          },
+          {
+            "action": "Send an email to 'client@example.com' using the template id with variables {invoiceId: 'INV-001', customerName: 'Alice Smith', amount: '99.99'}",
+            "expected": "Returns a response with a non-null email id"
+          },
+          {
+            "action": "Retrieve the sent email by its id",
+            "expected": "Returns email with to=['client@example.com'], subject='Invoice #INV-001', from='billing@example.com'"
+          }
+        ],
+        "api_operations": [
+          "POST /templates",
+          "POST /templates/{id}/publish",
+          "POST /emails",
+          "GET /emails/{id}"
+        ]
+      },
+      {
+        "id": "send-template-with-from-override",
+        "title": "Override template defaults when sending an email",
+        "given": "An authenticated API client with a published template that has default from and subject",
+        "steps": [
+          {
+            "action": "Create a template with name 'Overridable Template', subject 'Default Subject', from 'default@example.com', html '<p>Hello {{name}}</p>', variables [{key: 'name', type: 'string'}]",
+            "expected": "Returns object='template' with a non-null id"
+          },
+          {
+            "action": "Publish the template by its id",
+            "expected": "Returns a successful response"
+          },
+          {
+            "action": "Send an email to 'user@example.com' using the template id, with from overridden to 'custom@example.com', subject overridden to 'Custom Subject', and variables {name: 'Bob'}",
+            "expected": "Returns a response with a non-null email id"
+          },
+          {
+            "action": "Retrieve the sent email by its id",
+            "expected": "Returns email with from='custom@example.com', subject='Custom Subject' (overrides applied over template defaults)"
+          }
+        ],
+        "api_operations": [
+          "POST /templates",
+          "POST /templates/{id}/publish",
+          "POST /emails",
+          "GET /emails/{id}"
+        ]
+      },
+      {
+        "id": "send-template-with-alias",
+        "title": "Send an email referencing a template by its alias instead of id",
+        "given": "An authenticated API client with a published template that has an alias",
+        "steps": [
+          {
+            "action": "Create a template with name 'Alias Template', alias 'welcome-email', subject 'Welcome!', from 'hello@example.com', html '<p>Welcome, {{name}}!</p>', variables [{key: 'name', type: 'string'}]",
+            "expected": "Returns object='template' with a non-null id"
+          },
+          {
+            "action": "Publish the template by its id",
+            "expected": "Returns a successful response"
+          },
+          {
+            "action": "Retrieve the template using alias 'welcome-email'",
+            "expected": "Returns the template with name='Alias Template', alias='welcome-email', status='published'"
+          }
+        ],
+        "api_operations": [
+          "POST /templates",
+          "POST /templates/{id}/publish",
+          "GET /templates/{alias}"
+        ]
+      }
+    ]
+  }
+]
