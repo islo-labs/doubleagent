@@ -1,0 +1,32 @@
+name: linear
+version: "1.0"
+description: Linear GraphQL API fake
+docs: https://developers.linear.app/docs/graphql/working-with-the-graphql-api
+
+brief: |
+  Linear is a project management tool for software teams. Its GraphQL API
+  provides full access to issues, projects, teams, users, and workflows.
+
+  This fake implements the core Linear GraphQL API surface that AI agents
+  typically interact with: listing and managing issues, projects, teams,
+  and delivering webhook event payloads.
+
+supported_flows:
+  - crud-issues
+  - crud-projects
+  - query-teams
+  - query-viewer
+  - webhooks
+
+server:
+  command: ["uv", "run", "python", "main.py"]
+
+contracts:
+  command: ["uv", "run", "pytest", "-v", "--tb=short"]
+
+# Environment variables set by the CLI when running contract tests:
+#   DOUBLEAGENT_LINEAR_URL - URL of the running fake service (set automatically)
+#   PORT - Port the service listens on (set automatically)
+
+features:
+  webhooks: true
