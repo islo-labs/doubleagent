@@ -47,7 +47,24 @@ doubleagent status                    # Show running services
 doubleagent stop                      # Stop all
 doubleagent reset github              # Clear state
 doubleagent seed github ./data.yaml   # Load fixtures
+doubleagent seed slack --api-key-env SLACK_TOKEN  # Only for import-capable services
 ```
+
+Live import is opt-in per service. The bundled services currently use fixture seeding;
+their `service.yaml` files mark import as unsupported. For an import-capable service,
+set the vendor token in an environment variable and run:
+
+```bash
+doubleagent seed my-service --api-key-env SOURCE_TOKEN
+doubleagent seed my-service --api-key-env SOURCE_TOKEN \
+  --end-at 2026-10-15T12:00:00Z --days-back 30
+```
+
+The default window is the preceding 90 days ending at the current UTC time.
+The end timestamp is excluded. Prefer `--api-key-env` so the token does not appear
+in shell history or process arguments. The token is sent only in the import
+request's Authorization header. Reset restores the last successful live import
+for that running process. See [the import protocol](docs/import-contract.md).
 
 When a service starts, the CLI prints the environment variable to use:
 

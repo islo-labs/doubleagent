@@ -44,3 +44,8 @@ contracts:
 #   DOUBLEAGENT_RESEND_URL - URL of the running fake service (set automatically)
 #   RESEND_GROUNDING_TOKEN - API token for grounding mode against the real Resend API
 #   PORT - Port the service listens on (set automatically)
+
+# Live import is opt-in; existing services remain fixture-only.
+import:
+  supported: false
+  resources: []

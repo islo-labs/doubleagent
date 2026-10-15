@@ -26,6 +26,9 @@ pub struct ServiceDefinition {
     /// which flows should be tested.
     #[serde(default)]
     pub supported_flows: Vec<String>,
+    /// Optional live import capability. Absent metadata means fixture-only.
+    #[serde(default)]
+    pub import: ImportConfig,
     /// Server configuration
     pub server: ServerConfig,
     /// Contract test configuration
@@ -33,6 +36,15 @@ pub struct ServiceDefinition {
     /// Path to the service directory (not serialized)
     #[serde(skip)]
     pub path: PathBuf,
+}
+
+/// Capabilities advertised by a service's live importer.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ImportConfig {
+    #[serde(default)]
+    pub supported: bool,
+    #[serde(default)]
+    pub resources: Vec<String>,
 }
 
 /// Server configuration for a service.
@@ -223,5 +235,18 @@ impl ServiceRegistry {
     /// Update all installed services to the latest version.
     pub fn update_all(&self) -> Result<Vec<String>> {
         self.fetcher.update_all_services()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ServiceDefinition;
+
+    #[test]
+    fn missing_import_metadata_remains_fixture_only() {
+        let service: ServiceDefinition =
+            serde_yaml::from_str("name: legacy\nserver:\n  command: [true]\n").unwrap();
+        assert!(!service.import.supported);
+        assert!(service.import.resources.is_empty());
     }
 }

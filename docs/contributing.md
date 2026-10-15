@@ -24,6 +24,16 @@ When you run `doubleagent start` or `doubleagent contract`, the CLI will automat
 
 ## Adding a New Service
 
+### Live import capability
+
+Services are fixture-only by default. To support `doubleagent seed <service>
+--api-key-env SOURCE_TOKEN`, declare `import: {supported: true, resources:
+[users, items]}` in `service.yaml` and implement `POST /_doubleagent/import`.
+Follow [the protocol and deterministic contract cases](import-contract.md), including
+atomic rollback, relationship closure, and reset-to-imported-baseline behavior.
+Test with the local stub, not a real vendor credential, in normal CI. Never log
+or persist the source token. Keep it in the Authorization header only.
+
 ### Step 1: Create Service Directory
 
 ```bash

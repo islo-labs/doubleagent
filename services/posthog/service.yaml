@@ -27,3 +27,8 @@ contracts:
 # Environment variables set by the CLI when running contract tests:
 #   DOUBLEAGENT_POSTHOG_URL - URL of the running fake service (set automatically)
 #   PORT - Port the service listens on (set automatically)
+
+# Live import is opt-in; existing services remain fixture-only.
+import:
+  supported: false
+  resources: []
