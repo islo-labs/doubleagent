@@ -32,3 +32,8 @@ contracts:
 
 features:
   webhooks: true
+
+# Live import is opt-in; existing services remain fixture-only.
+import:
+  supported: false
+  resources: []

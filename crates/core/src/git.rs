@@ -274,13 +274,8 @@ impl ServiceFetcher {
 fn print_progress(progress: &Progress) {
     let received = progress.received_objects();
     let total = progress.total_objects();
-    if total > 0 {
-        debug!(
-            "Receiving objects: {}% ({}/{})",
-            (received * 100) / total,
-            received,
-            total
-        );
+    if let Some(percent) = (received * 100).checked_div(total) {
+        debug!("Receiving objects: {}% ({}/{})", percent, received, total);
     }
 }
 

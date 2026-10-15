@@ -107,7 +107,20 @@ pub struct SeedArgs {
     pub service: String,
 
     /// Path to seed data file (YAML or JSON)
-    pub file: String,
+    #[arg(conflicts_with = "api_key_env")]
+    pub file: Option<String>,
+
+    /// Environment variable containing the source API token
+    #[arg(long, conflicts_with = "file")]
+    pub api_key_env: Option<String>,
+
+    /// End of the import window (RFC3339; defaults to current UTC time)
+    #[arg(long, requires = "api_key_env")]
+    pub end_at: Option<String>,
+
+    /// Number of days before --end-at to import
+    #[arg(long, requires = "api_key_env", default_value_t = 90)]
+    pub days_back: u32,
 }
 
 #[derive(Parser)]

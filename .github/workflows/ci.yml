@@ -44,6 +44,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
         run: cargo test --all-features
+      - name: Check deterministic import stub
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
 
   build:
     name: Build

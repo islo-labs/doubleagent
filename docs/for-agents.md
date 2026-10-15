@@ -23,6 +23,13 @@ curl https://mise.run | sh
 
 ## Adding a New Service
 
+For live import, read [the import protocol and stub contract](import-contract.md)
+before enabling `import.supported` in `service.yaml`. The CLI supplies a UTC
+window and source token; the service owns vendor requests, pagination, mapping,
+dependency closure, atomic state replacement, and the reset baseline. Keep the
+token out of logs, state, responses, and request JSON. Existing services remain
+fixture-only until their import contract cases pass without vendor credentials.
+
 > **Reference Implementation:** See `services/github/` for a complete working example.
 
 ### 1. Gather Information
