@@ -126,6 +126,34 @@ fn live_import_sends_token_only_in_header_and_redacts_response() {
 }
 
 #[test]
+fn equivalent_response_window_is_accepted() {
+    let (port, request) = serve(
+        "200 OK",
+        json!({
+            "start_at":"2026-09-15T12:00:00.000Z",
+            "end_at":"2026-10-15T12:00:00+00:00",
+            "imported":{"users":2}, "warnings":[]
+        }),
+    );
+    let dir = setup(true, port);
+    command(dir.path())
+        .env("TEST_SOURCE_TOKEN", "test-token")
+        .args([
+            "seed",
+            "slack",
+            "--api-key-env",
+            "TEST_SOURCE_TOKEN",
+            "--end-at",
+            "2026-10-15T12:00:00Z",
+            "--days-back",
+            "30",
+        ])
+        .assert()
+        .success();
+    request.join().unwrap();
+}
+
+#[test]
 fn unsupported_service_fails_before_token_lookup() {
     let dir = setup(false, 9);
     command(dir.path())

@@ -109,15 +109,22 @@ pub async fn run(args: SeedArgs) -> anyhow::Result<()> {
         .json()
         .await
         .map_err(|_| anyhow!("invalid live import response"))?;
-    if result.start_at != request_window.start_at || result.end_at != request_window.end_at {
+    let parse_window_time = |value: &str| {
+        DateTime::parse_from_rfc3339(value)
+            .map(|time| time.with_timezone(&Utc))
+            .map_err(|_| anyhow!("invalid live import response window"))
+    };
+    if parse_window_time(&result.start_at)? != parse_window_time(&request_window.start_at)?
+        || parse_window_time(&result.end_at)? != parse_window_time(&request_window.end_at)?
+    {
         bail!("live import returned a different window");
     }
     println!(
         "{} Imported {} from {} to {}",
         "✓".green(),
         args.service,
-        result.start_at,
-        result.end_at
+        request_window.start_at,
+        request_window.end_at
     );
     for (resource, count) in result.imported {
         println!("  {}: {}", resource.replace(&token, "[redacted]"), count);
