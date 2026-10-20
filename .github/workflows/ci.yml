@@ -10,7 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  python:
+  test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,18 +22,44 @@ jobs:
       - run: uv sync --locked --extra dev
       - run: cargo build -p doubleagent-router
       - run: uv run pytest
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run pre-commit run --all-files
+      - run: cargo test -p doubleagent-router
 
-  router:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: uv sync --locked --extra dev
+      - run: uv run pre-commit run --all-files
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --all -- --check
       - run: cargo clippy -p doubleagent-router --all-targets -- -D warnings
-      - run: cargo test -p doubleagent-router
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: uv sync --locked --extra dev
+      - run: uv build
+      - run: cargo build -p doubleagent-router
