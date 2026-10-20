@@ -3,97 +3,36 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
 
-env:
-  CARGO_TERM_COLOR: always
-  DOUBLEAGENT_BRANCH: ${{ github.head_ref || github.ref_name }}
-
 jobs:
-  fmt:
-    name: Format
+  python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v6
         with:
-          components: rustfmt
-      - name: Check formatting
-        run: cargo fmt --all -- --check
+          python-version: "3.11"
+      - uses: dtolnay/rust-toolchain@stable
+      - run: uv sync --locked --extra dev
+      - run: cargo build -p doubleagent-router
+      - run: uv run pytest
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pre-commit run --all-files
 
-  clippy:
-    name: Clippy
+  router:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Run Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Run tests
-        run: cargo test --all-features
-      - name: Check deterministic import stub
-        run: python3 -m unittest discover -s tests -p 'test_*.py'
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Build
-        run: cargo build --release
-      - name: Upload CLI binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: doubleagent-cli
-          path: target/release/doubleagent
-          retention-days: 1
-
-  discover-services:
-    name: Discover Services
-    runs-on: ubuntu-latest
-    outputs:
-      services: ${{ steps.discover.outputs.services }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Find services with service.yaml
-        id: discover
-        run: |
-          services=$(ls -d services/*/service.yaml 2>/dev/null | xargs -I {} dirname {} | xargs -I {} basename {} | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "services=$services" >> $GITHUB_OUTPUT
-
-  contracts:
-    name: Contract Tests (${{ matrix.service }})
-    runs-on: ubuntu-latest
-    needs: [build, discover-services]
-    if: ${{ needs.discover-services.outputs.services != '[]' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        service: ${{ fromJson(needs.discover-services.outputs.services) }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
-      - name: Download CLI binary
-        uses: actions/download-artifact@v4
-        with:
-          name: doubleagent-cli
-          path: ./bin
-      - name: Make CLI executable
-        run: chmod +x ./bin/doubleagent
-      - name: Run contract tests
-        run: ./bin/doubleagent contract ${{ matrix.service }}
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy -p doubleagent-router --all-targets -- -D warnings
+      - run: cargo test -p doubleagent-router
