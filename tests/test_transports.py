@@ -2,11 +2,12 @@
 
 import asyncio
 import base64
+import struct
 
 import httpx
 import pytest
 
-from doubleagent.runtime.protocol import read_frame, response_to_wire, write_frame
+from doubleagent.runtime.protocol import MAX_FRAME, read_frame, response_to_wire, write_frame
 from doubleagent.sdk import (
     Credential,
     DirectTokenTransport,
@@ -286,3 +287,125 @@ async def test_direct_cancellation_retains_asyncio_semantics():
         await task
     assert error.value.code == TransportErrorCode.CANCELLED
     await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_direct_rejects_undeclared_port_before_sending_credential():
+    sent = []
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda request: (
+                sent.append(request) or httpx.Response(200, stream=httpx.ByteStream(b"ok"))
+            )
+        )
+    )
+    transport = DirectTokenTransport(
+        BINDING, StaticCredentialProvider(Credential("bearer", "provider-secret")), client=client
+    )
+    with pytest.raises(TransportError) as error:
+        await transport.request(REQUEST.model_copy(update={"host": "api.example.com:4443"}))
+    assert error.value.code == TransportErrorCode.INVALID_TARGET
+    assert sent == []
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_hosted_rejects_undeclared_port_before_using_channel(tmp_path):
+    transport = RouterBackedTransport(BINDING, tmp_path / "absent.sock")
+    with pytest.raises(TransportError) as error:
+        await transport.request(
+            REQUEST.model_copy(update={"host": "api.example.com:4443"}),
+            source_request_id="source",
+        )
+    assert error.value.code == TransportErrorCode.INVALID_TARGET
+
+
+@pytest.mark.asyncio
+async def test_hosted_rejects_redirect_with_location(tmp_path):
+    socket = tmp_path / "forward.sock"
+
+    async def router(reader, writer):
+        frame = await read_frame(reader)
+        await write_frame(
+            writer,
+            {
+                "version": 1,
+                "kind": "raw_response",
+                "request_id": frame["request_id"],
+                "response": response_to_wire(
+                    ProviderResponse(status=302, headers=(("Location", "https://other.example"),))
+                ),
+            },
+        )
+        writer.close()
+        await writer.wait_closed()
+
+    server = await asyncio.start_unix_server(router, path=str(socket))
+    try:
+        with pytest.raises(TransportError) as error:
+            await RouterBackedTransport(BINDING, socket).request(
+                REQUEST, source_request_id="source"
+            )
+        assert error.value.code == TransportErrorCode.INVALID_TARGET
+    finally:
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_hosted_oversized_encoded_response_is_response_too_large(tmp_path):
+    socket = tmp_path / "forward.sock"
+    body = b"x" * (8 * 1024 * 1024)
+    encoded_size = len(base64.b64encode(body))
+    assert len(body) < 10 * 1024 * 1024 and encoded_size > MAX_FRAME
+
+    async def router(reader, writer):
+        await read_frame(reader)
+        writer.write(struct.pack(">I", encoded_size))
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+
+    server = await asyncio.start_unix_server(router, path=str(socket))
+    try:
+        with pytest.raises(TransportError) as error:
+            await RouterBackedTransport(BINDING, socket).request(
+                REQUEST, source_request_id="source"
+            )
+        assert error.value.code == TransportErrorCode.RESPONSE_TOO_LARGE
+    finally:
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_direct_allows_default_and_explicitly_bound_custom_port():
+    seen = []
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda request: (
+                seen.append(request.url.port) or httpx.Response(200, stream=httpx.ByteStream(b"ok"))
+            )
+        )
+    )
+    credential = StaticCredentialProvider(Credential("bearer", "secret"))
+    default_transport = DirectTokenTransport(BINDING, credential, client=client)
+    custom_binding = TransportBinding("github", "account-1", ("api.example.com:4443",))
+    custom_transport = DirectTokenTransport(custom_binding, credential, client=client)
+    assert (
+        await default_transport.request(REQUEST.model_copy(update={"host": "API.EXAMPLE.COM:443"}))
+    ).status == 200
+    assert (
+        await custom_transport.request(REQUEST.model_copy(update={"host": "api.example.com:4443"}))
+    ).status == 200
+    with pytest.raises(TransportError) as error:
+        await custom_transport.request(REQUEST)
+    assert error.value.code == TransportErrorCode.INVALID_TARGET
+    assert seen == [None, 4443]
+    await client.aclose()
+
+
+def test_hosted_default_body_limit_accounts_for_protocol_encoding(tmp_path):
+    transport = RouterBackedTransport(BINDING, tmp_path / "forward.sock")
+    assert transport.response_limit == 7 * 1024 * 1024
+    assert len(base64.b64encode(b"x" * transport.response_limit)) < MAX_FRAME

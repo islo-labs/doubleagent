@@ -17,6 +17,7 @@ import httpx
 
 from doubleagent.runtime.protocol import (
     PROTOCOL_VERSION,
+    FrameTooLargeError,
     modified_read_to_wire,
     read_frame,
     response_from_wire,
@@ -24,6 +25,8 @@ from doubleagent.runtime.protocol import (
 )
 
 from .models import ProviderRequest, ProviderResponse, host_key
+
+HOSTED_RESPONSE_LIMIT = 7 * 1024 * 1024
 
 
 class TransportErrorCode(StrEnum):
@@ -116,8 +119,14 @@ class TransportBinding:
         if not self.provider_key or not self.provider_account or not self.allowed_hosts:
             raise ValueError("provider binding is required")
         object.__setattr__(self, "allowed_hosts", tuple(self.allowed_hosts))
-        if any(host_key(host) != host for host in self.allowed_hosts):
-            raise ValueError("allowed hosts must be canonical DNS hostnames")
+        if len(set(self.allowed_hosts)) != len(self.allowed_hosts):
+            raise ValueError("allowed authorities must be unique")
+        for authority in self.allowed_hosts:
+            hostname = host_key(authority)
+            port = authority.rpartition(":")[2] if ":" in authority else None
+            canonical = hostname if port is None else f"{hostname}:{int(port)}"
+            if authority != canonical:
+                raise ValueError("allowed authorities must be canonical")
 
 
 _HOP_HEADERS = {
@@ -174,9 +183,16 @@ def _target(request: ProviderRequest, binding: TransportBinding, local_test: boo
         hostname = host_key(request.host)
     except ValueError:
         raise TransportError(TransportErrorCode.INVALID_TARGET) from None
-    if hostname not in binding.allowed_hosts:
-        raise TransportError(TransportErrorCode.INVALID_TARGET)
     if request.scheme != "https" and not (local_test and request.scheme == "http"):
+        raise TransportError(TransportErrorCode.INVALID_TARGET)
+    port_text = request.host.rpartition(":")[2] if ":" in request.host else None
+    if port_text is not None and port_text != str(int(port_text)):
+        raise TransportError(TransportErrorCode.INVALID_TARGET)
+    default_port = 443 if request.scheme == "https" else 80
+    port = int(port_text) if port_text is not None else None
+    explicitly_bound = port is not None and f"{hostname}:{port}" in binding.allowed_hosts
+    default_bound = hostname in binding.allowed_hosts and (port is None or port == default_port)
+    if not (explicitly_bound or default_bound):
         raise TransportError(TransportErrorCode.INVALID_TARGET)
     if not re.fullmatch(r"[A-Z]+", request.method.upper()) or not request.method.isascii():
         raise TransportError(TransportErrorCode.INVALID_TARGET)
@@ -218,6 +234,11 @@ def _event(
     except Exception:
         # Telemetry failure must not change the provider transport result.
         pass
+
+
+def _reject_redirect(status: int, headers: tuple[tuple[str, str], ...]) -> None:
+    if 300 <= status < 400 and any(name.lower() == "location" for name, _value in headers):
+        raise TransportError(TransportErrorCode.INVALID_TARGET)
 
 
 class DirectTokenTransport:
@@ -287,8 +308,7 @@ class DirectTokenTransport:
                     follow_redirects=False,
                 ) as response:
                     status = response.status_code
-                    if 300 <= status < 400 and response.headers.get("location"):
-                        raise TransportError(TransportErrorCode.INVALID_TARGET)
+                    _reject_redirect(status, tuple(response.headers.multi_items()))
                     body = bytearray()
                     async for chunk in response.aiter_raw():
                         body.extend(chunk)
@@ -329,7 +349,7 @@ class RouterBackedTransport:
         local_test: bool = False,
         connect_timeout: float = 10,
         total_timeout: float = 30,
-        response_limit: int = 10 * 1024 * 1024,
+        response_limit: int = HOSTED_RESPONSE_LIMIT,
         record: Callable[[str, Mapping[str, str]], None] | None = None,
     ) -> None:
         self.binding = binding
@@ -357,9 +377,12 @@ class RouterBackedTransport:
                 reader, writer = await asyncio.wait_for(
                     asyncio.open_unix_connection(str(self.socket_path)), self.connect_timeout
                 )
-                await write_frame(
-                    writer, modified_read_to_wire(request_id, source_request_id, safe_request)
-                )
+                try:
+                    await write_frame(
+                        writer, modified_read_to_wire(request_id, source_request_id, safe_request)
+                    )
+                except FrameTooLargeError:
+                    raise TransportError(TransportErrorCode.INVALID_TARGET) from None
                 frame = await read_frame(reader)
             if (
                 frame.get("version") != PROTOCOL_VERSION
@@ -369,6 +392,7 @@ class RouterBackedTransport:
                 raise TransportError(TransportErrorCode.CONNECT_FAILURE)
             response = response_from_wire(frame["response"])
             status = response.status
+            _reject_redirect(status, response.headers)
             if len(response.body) > self.response_limit:
                 raise TransportError(TransportErrorCode.RESPONSE_TOO_LARGE)
             return response
@@ -381,6 +405,9 @@ class RouterBackedTransport:
         except TransportError as exc:
             outcome = exc.code.value
             raise
+        except FrameTooLargeError:
+            outcome = TransportErrorCode.RESPONSE_TOO_LARGE.value
+            raise TransportError(TransportErrorCode.RESPONSE_TOO_LARGE) from None
         except (OSError, ValueError, KeyError, TypeError, asyncio.IncompleteReadError):
             outcome = TransportErrorCode.CONNECT_FAILURE.value
             raise TransportError(TransportErrorCode.CONNECT_FAILURE) from None
