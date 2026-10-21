@@ -8,7 +8,7 @@ import json
 import struct
 from typing import Any
 
-from doubleagent.sdk import ProviderRequest, ProviderResponse
+from doubleagent.sdk.models import ProviderRequest, ProviderResponse
 
 PROTOCOL_VERSION = 1
 MAX_FRAME = 10 * 1024 * 1024
