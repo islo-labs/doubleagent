@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, feat/doubleagent-v2]
   push:
-    branches: [main, feat/doubleagent-v2]
+    branches: [main]
 
 permissions:
   contents: read
