@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/doubleagent-v2]
   push:
-    branches: [main]
+    branches: [main, feat/doubleagent-v2]
 
 permissions:
   contents: read
