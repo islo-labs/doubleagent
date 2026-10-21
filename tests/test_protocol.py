@@ -69,8 +69,8 @@ async def test_json_array_frame_gets_invalid_request(tmp_path):
         await server.close()
 
 
-def test_transport_frame_ceiling_is_ten_mib():
-    assert MAX_FRAME == 10 * 1024 * 1024
+def test_transport_frame_ceiling_is_sixteen_mib():
+    assert MAX_FRAME == 16 * 1024 * 1024
 
 
 @pytest.mark.asyncio

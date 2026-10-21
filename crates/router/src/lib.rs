@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub const PROTOCOL_VERSION: u64 = 1;
-pub const MAX_FRAME: usize = 10 * 1024 * 1024;
+pub const MAX_FRAME: usize = 16 * 1024 * 1024;
 pub const MAX_BUFFERED: usize = 40 * 1024 * 1024;
 
 #[derive(Clone)]
@@ -338,6 +338,20 @@ mod tests {
     }
 
     #[test]
+    fn ten_mib_binary_body_fits_base64_frame() {
+        let (mut left, mut right) = UnixStream::pair().unwrap();
+        let encoded_size = (10 * 1024 * 1024_usize).div_ceil(3) * 4;
+        let value = json!({"body_b64": "A".repeat(encoded_size), "headers": []});
+        let writer = std::thread::spawn(move || write_frame(&mut left, &value));
+        let received = read_frame(&mut right);
+        assert!(writer.join().unwrap().is_ok());
+        assert_eq!(
+            received.unwrap()["body_b64"].as_str().unwrap().len(),
+            encoded_size
+        );
+    }
+
+    #[test]
     fn unknown_host_cannot_reach_runtime() {
         let hosts = HashSet::from(["known.test".to_string()]);
         let request = json!({"version": 1, "kind": "managed_request", "request": {"host": "other.test", "method":"GET", "scheme":"https", "path":"/", "raw_target":"/", "query":[], "headers":[], "body_b64":""}});
@@ -375,8 +389,8 @@ mod tests {
     }
 
     #[test]
-    fn ten_mib_frame_ceiling_and_aggregate_reservation() {
-        assert_eq!(MAX_FRAME, 10 * 1024 * 1024);
+    fn sixteen_mib_frame_ceiling_and_aggregate_reservation() {
+        assert_eq!(MAX_FRAME, 16 * 1024 * 1024);
         let budget = FrameBudget::new(20);
         let first = budget.reserve(12).unwrap();
         assert!(budget.reserve(9).is_err());

@@ -39,3 +39,31 @@ __all__ = [
     "Telemetry",
     "UpstreamTransport",
 ]
+
+from .transports import (
+    Credential,
+    DirectTokenTransport,
+    EnvironmentCredentialProvider,
+    MockTransport,
+    RecordingTransport,
+    RouterBackedTransport,
+    StaticCredentialProvider,
+    TransportBinding,
+    TransportCancelledError,
+    TransportError,
+    TransportErrorCode,
+)
+
+__all__ += [
+    "Credential",
+    "DirectTokenTransport",
+    "EnvironmentCredentialProvider",
+    "MockTransport",
+    "RecordingTransport",
+    "RouterBackedTransport",
+    "StaticCredentialProvider",
+    "TransportBinding",
+    "TransportCancelledError",
+    "TransportError",
+    "TransportErrorCode",
+]

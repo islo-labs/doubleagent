@@ -8,10 +8,14 @@ import json
 import struct
 from typing import Any
 
-from doubleagent.sdk import ProviderRequest, ProviderResponse
+from doubleagent.sdk.models import ProviderRequest, ProviderResponse
 
 PROTOCOL_VERSION = 1
-MAX_FRAME = 10 * 1024 * 1024
+MAX_FRAME = 16 * 1024 * 1024
+
+
+class FrameTooLargeError(ValueError):
+    """A private protocol frame exceeds the negotiated v1 byte ceiling."""
 
 
 def request_to_wire(request: ProviderRequest) -> dict[str, Any]:
@@ -74,7 +78,7 @@ def modified_read_to_wire(
 async def read_frame(reader: asyncio.StreamReader) -> dict[str, Any]:
     size = struct.unpack(">I", await reader.readexactly(4))[0]
     if size > MAX_FRAME:
-        raise ValueError("local protocol frame too large")
+        raise FrameTooLargeError("local protocol frame too large")
     message = json.loads(await reader.readexactly(size))
     if not isinstance(message, dict):
         raise ValueError("local protocol frame must be an object")
@@ -84,6 +88,6 @@ async def read_frame(reader: asyncio.StreamReader) -> dict[str, Any]:
 async def write_frame(writer: asyncio.StreamWriter, message: dict[str, Any]) -> None:
     payload = json.dumps(message, separators=(",", ":")).encode()
     if len(payload) > MAX_FRAME:
-        raise ValueError("local protocol frame too large")
+        raise FrameTooLargeError("local protocol frame too large")
     writer.write(struct.pack(">I", len(payload)) + payload)
     await writer.drain()
