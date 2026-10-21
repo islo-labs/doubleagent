@@ -1,0 +1,7 @@
+name: beta
+sdk_version: v0
+recovery_policy_version: beta-1
+provider_hosts: [beta.example]
+routing_priority: 10
+supported_operations: [read, write]
+implementation: tests.fixtures.service:RecordingService

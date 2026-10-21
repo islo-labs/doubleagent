@@ -1,0 +1,7 @@
+name: alpha
+sdk_version: v0
+recovery_policy_version: alpha-1
+provider_hosts: [alpha.example]
+routing_priority: 10
+supported_operations: [read, write]
+implementation: tests.fixtures.service:RecordingService
