@@ -26,8 +26,6 @@ from doubleagent.runtime.protocol import (
 
 from .models import ProviderRequest, ProviderResponse, host_key
 
-HOSTED_RESPONSE_LIMIT = 7 * 1024 * 1024
-
 
 class TransportErrorCode(StrEnum):
     INVALID_TARGET = "invalid_target"
@@ -349,7 +347,7 @@ class RouterBackedTransport:
         local_test: bool = False,
         connect_timeout: float = 10,
         total_timeout: float = 30,
-        response_limit: int = HOSTED_RESPONSE_LIMIT,
+        response_limit: int = 10 * 1024 * 1024,
         record: Callable[[str, Mapping[str, str]], None] | None = None,
     ) -> None:
         self.binding = binding

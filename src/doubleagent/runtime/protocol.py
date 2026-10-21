@@ -11,7 +11,7 @@ from typing import Any
 from doubleagent.sdk.models import ProviderRequest, ProviderResponse
 
 PROTOCOL_VERSION = 1
-MAX_FRAME = 10 * 1024 * 1024
+MAX_FRAME = 16 * 1024 * 1024
 
 
 class FrameTooLargeError(ValueError):

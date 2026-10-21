@@ -355,9 +355,9 @@ async def test_hosted_rejects_redirect_with_location(tmp_path):
 @pytest.mark.asyncio
 async def test_hosted_oversized_encoded_response_is_response_too_large(tmp_path):
     socket = tmp_path / "forward.sock"
-    body = b"x" * (8 * 1024 * 1024)
-    encoded_size = len(base64.b64encode(body))
-    assert len(body) < 10 * 1024 * 1024 and encoded_size > MAX_FRAME
+    body_size = 12 * 1024 * 1024
+    encoded_size = ((body_size + 2) // 3) * 4 + 128
+    assert body_size < 13 * 1024 * 1024 and encoded_size > MAX_FRAME
 
     async def router(reader, writer):
         await read_frame(reader)
@@ -369,7 +369,7 @@ async def test_hosted_oversized_encoded_response_is_response_too_large(tmp_path)
     server = await asyncio.start_unix_server(router, path=str(socket))
     try:
         with pytest.raises(TransportError) as error:
-            await RouterBackedTransport(BINDING, socket).request(
+            await RouterBackedTransport(BINDING, socket, response_limit=13 * 1024 * 1024).request(
                 REQUEST, source_request_id="source"
             )
         assert error.value.code == TransportErrorCode.RESPONSE_TOO_LARGE
@@ -407,5 +407,49 @@ async def test_direct_allows_default_and_explicitly_bound_custom_port():
 
 def test_hosted_default_body_limit_accounts_for_protocol_encoding(tmp_path):
     transport = RouterBackedTransport(BINDING, tmp_path / "forward.sock")
-    assert transport.response_limit == 7 * 1024 * 1024
+    assert transport.response_limit == 10 * 1024 * 1024
     assert len(base64.b64encode(b"x" * transport.response_limit)) < MAX_FRAME
+
+
+@pytest.mark.parametrize(
+    "body_size,should_succeed",
+    [
+        (10 * 1024 * 1024, True),
+        (10 * 1024 * 1024 + 1, False),
+    ],
+)
+@pytest.mark.asyncio
+async def test_hosted_ten_mib_body_boundary_round_trip(tmp_path, body_size, should_succeed):
+    socket = tmp_path / "forward.sock"
+    body = b"x" * body_size
+
+    async def router(reader, writer):
+        frame = await read_frame(reader)
+        try:
+            await write_frame(
+                writer,
+                {
+                    "version": 1,
+                    "kind": "raw_response",
+                    "request_id": frame["request_id"],
+                    "response": response_to_wire(ProviderResponse(status=200, body=body)),
+                },
+            )
+        finally:
+            writer.close()
+            await writer.wait_closed()
+
+    server = await asyncio.start_unix_server(router, path=str(socket))
+    try:
+        transport = RouterBackedTransport(BINDING, socket)
+        assert transport.response_limit == 10 * 1024 * 1024
+        if should_succeed:
+            response = await transport.request(REQUEST, source_request_id="source")
+            assert response.status == 200 and response.body == body
+        else:
+            with pytest.raises(TransportError) as error:
+                await transport.request(REQUEST, source_request_id="source")
+            assert error.value.code == TransportErrorCode.RESPONSE_TOO_LARGE
+    finally:
+        server.close()
+        await server.wait_closed()
